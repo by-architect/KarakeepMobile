@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 /// Minimal client for Karakeep's tRPC endpoint (`/api/trpc`, superjson).
@@ -5,8 +7,21 @@ import 'package:dio/dio.dart';
 /// Only for what REST `/api/v1` doesn't offer — see
 /// docs/research/karakeep-server.md §2. Non-batched calls only.
 extension TrpcDio on Dio {
-  Future<Object?> trpcQuery(String procedure) async {
-    final response = await get<Object?>('/api/trpc/$procedure');
+  /// [input] is superjson's `json` part; [meta] its `meta` part, needed when
+  /// the input holds types plain JSON can't express (e.g. `Date`).
+  Future<Object?> trpcQuery(
+    String procedure, {
+    Map<String, Object?>? input,
+    Map<String, Object?>? meta,
+  }) async {
+    final response = await get<Object?>(
+      '/api/trpc/$procedure',
+      queryParameters: input == null
+          ? null
+          : {
+              'input': jsonEncode({'json': input, 'meta': ?meta}),
+            },
+    );
     return _unwrap(response.data);
   }
 
@@ -41,3 +56,13 @@ Object? _unwrap(Object? body) {
   }
   return (code: null, message: null);
 }
+
+/// superjson sends a `Map` as a list of `[key, value]` pairs.
+Map<String, Object?> decodeSuperjsonMap(Object? json) => switch (json) {
+      final List<Object?> pairs => {
+          for (final pair in pairs)
+            if (pair case [final String key, final value]) key: value,
+        },
+      final Map<Object?, Object?> map => map.map((k, v) => MapEntry('$k', v)),
+      _ => const {},
+    };

@@ -59,7 +59,8 @@ Failure _fromResponse(
     403 => ForbiddenFailure(
         serverMessage ?? forbiddenMessage ?? const ForbiddenFailure().message,
       ),
-    404 || 405 => const NotKarakeepFailure(),
+    404 => const NotFoundFailure(),
+    405 => const NotKarakeepFailure(),
     429 => const RateLimitedFailure(),
     _ => UnknownFailure(
         serverMessage ?? 'The server returned an error (${status ?? '?'}).',

@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:karakeep_client/app.dart';
 import 'package:karakeep_client/features/auth/auth_providers.dart';
 import 'package:karakeep_client/features/auth/domain/entities/server_info.dart';
+import 'package:karakeep_client/features/bookmarks/bookmarks_providers.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../unit/auth/fake_auth_repository.dart';
+import '../unit/bookmarks/fakes.dart';
 
 void main() {
   late FakeAuthRepository repo;
@@ -18,7 +20,13 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repo),
+          bookmarksRepositoryProvider.overrideWithValue(
+            FakeBookmarksRepository(items: {'all': [link('a')]}),
+          ),
+          homePreferencesProvider.overrideWithValue(InMemoryHomePreferences()),
+        ],
         child: const App(),
       ),
     );
@@ -51,9 +59,13 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bookmarks'), findsOneWidget);
+    expect(find.text('All bookmarks'), findsOneWidget);
+    expect(find.text('Article a'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Lists'));
+    await tester.pumpAndSettle();
     expect(find.text('Ada'), findsOneWidget);
-    expect(find.text('https://keep.example.com'), findsOneWidget);
+    expect(find.text('keep.example.com'), findsOneWidget);
 
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();

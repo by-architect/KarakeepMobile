@@ -15,6 +15,7 @@ abstract final class AppColors {
   static const input = Color(0xFF333333);
   static const destructive = Color(0xFFFE4336);
   static const success = Color(0xFF30D158);
+  static const favourite = Color(0xFFFFD60A);
 }
 
 abstract final class AppRadii {

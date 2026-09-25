@@ -109,7 +109,10 @@ class AuthRepositoryImpl implements AuthRepository {
     } on Failure {
       rethrow;
     } on DioException catch (e) {
-      throw mapDioException(e, unauthorizedMessage: unauthorizedMessage);
+      final failure =
+          mapDioException(e, unauthorizedMessage: unauthorizedMessage);
+      // Before sign-in, a missing endpoint means "not a Karakeep server".
+      throw failure is NotFoundFailure ? const NotKarakeepFailure() : failure;
     } on FormatException {
       throw const NotKarakeepFailure();
     } on TypeError {

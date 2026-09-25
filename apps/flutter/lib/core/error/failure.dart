@@ -39,6 +39,11 @@ final class NotKarakeepFailure extends Failure {
   ]);
 }
 
+/// The item (list, bookmark, …) doesn't exist, or no longer does.
+final class NotFoundFailure extends Failure {
+  const NotFoundFailure([super.message = 'This item no longer exists.']);
+}
+
 final class UnauthorizedFailure extends Failure {
   const UnauthorizedFailure([super.message = 'You’re not signed in.']);
 }
