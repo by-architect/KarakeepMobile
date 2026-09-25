@@ -283,18 +283,18 @@ class _Brand extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Same artwork as the launcher icon (tool/generate_app_icon.py).
         Container(
-          width: 64,
-          height: 64,
+          width: 72,
+          height: 72,
           decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.border),
           ),
-          child: const Icon(
-            Icons.bookmarks_rounded,
-            size: 30,
-            color: AppColors.foreground,
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/icon/app_icon.png',
+            semanticLabel: '${AppConfig.appName} logo',
           ),
         ),
         const SizedBox(height: 16),

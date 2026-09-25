@@ -47,6 +47,23 @@ abstract final class AppTheme {
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.foreground,
       ),
+      // Material's default snackbar is a light slab on dark themes, and its
+      // action text was unreadable. Keep it black like the app, outlined so
+      // it stands out from the black page, with a blue Undo.
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.card,
+        contentTextStyle: const TextStyle(
+          color: AppColors.foreground,
+          fontSize: 15,
+        ),
+        actionTextColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          side: const BorderSide(color: AppColors.input),
+        ),
+      ),
     );
   }
 }
