@@ -1,0 +1,1 @@
+Unofficial Karakeep client: read, sort and clean up your self-hosted bookmarks

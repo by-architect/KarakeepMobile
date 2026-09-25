@@ -1,0 +1,1 @@
+First release: sign in to your Karakeep server, browse lists and tags with unread counts, search, read in the in-app viewer, and swipe to favorite, archive or delete — with Undo.

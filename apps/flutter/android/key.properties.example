@@ -1,0 +1,8 @@
+# Copy to key.properties (git-ignored) to sign release builds locally.
+# In CI, set ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD instead.
+# Without either, `flutter build apk --release` produces an unsigned APK.
+storeFile=/absolute/path/to/linkstow-upload.jks
+storePassword=
+keyAlias=upload
+keyPassword=

@@ -1,0 +1,29 @@
+Linkstow is an open-source mobile client for Karakeep, the self-hostable "bookmark everything" app. Sign in to your own server — or Karakeep Cloud — and read, sort and clean up your bookmarks from your phone.
+
+<b>Connect</b>
+<ul>
+<li>Any Karakeep server: self-hosted (LAN http://, private CAs) or Karakeep Cloud</li>
+<li>Email and password, or an API key for servers that use single sign-on</li>
+<li>Custom request headers for servers behind Cloudflare Access, Authelia or another auth proxy</li>
+<li>Your password is never stored: it is exchanged for an API key kept in secure storage</li>
+</ul>
+
+<b>Browse</b>
+<ul>
+<li>Link-preview cards with image, title, description, site and every tag</li>
+<li>All bookmarks, Favorites, Archived, your lists (nested and smart lists) and tags</li>
+<li>An "unarchived / total" count on every list — archived means read in Karakeep</li>
+<li>Search with Karakeep's query language, inside the open list or tag</li>
+<li>Create lists and tags</li>
+</ul>
+
+<b>Read and act</b>
+<ul>
+<li>In-app viewer with the live page or Karakeep's saved reader view</li>
+<li>Swipe between bookmarks; favorite, archive, share, tag, add to lists or delete</li>
+<li>Configurable swipe actions on cards, with Undo for everything</li>
+</ul>
+
+Linkstow needs a Karakeep server (0.33 or newer). It collects no data: it only talks to the server you sign in to.
+
+Linkstow is an independent community project, not affiliated with or endorsed by Karakeep or Localhost Labs Ltd.

@@ -70,8 +70,9 @@ revoke itself, so revoke it on the web if you no longer need it.
 
 ## Building from source
 
-Linkstow is Flutter (Dart) with Riverpod and uses the `material_ui` package, which
-currently needs Flutter's **master** channel (developed on 3.49 / Dart 3.14).
+Linkstow is Flutter (Dart) with Riverpod. It builds with **stable Flutter
+3.47.5**, pinned in [`apps/flutter/.fvmrc`](apps/flutter/.fvmrc) — the same
+version F-Droid builds with.
 
 ```sh
 cd apps/flutter
@@ -81,11 +82,30 @@ flutter test               # unit + widget tests
 flutter build apk --release
 ```
 
-The launcher icon is drawn by a script, then turned into platform icons:
+### Release signing
+
+Release builds are signed only when a key is provided; otherwise the APK is
+unsigned (F-Droid signs its own builds). Provide the key either way:
+
+- **Locally:** copy `apps/flutter/android/key.properties.example` to
+  `key.properties` (git-ignored) and fill it in.
+- **CI:** set `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`,
+  `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`.
+
+An unsigned APK can't be installed, so use a debug build (`flutter run`) for
+day-to-day testing. Never commit a keystore.
+
+### Store listing and icons
+
+The store listing that F-Droid and Google Play read lives in
+[`fastlane/metadata/android/en-US/`](fastlane/metadata/android/en-US/):
+title, descriptions, screenshots, and `changelogs/<versionCode>.txt` for each
+release. Icons and store graphics are drawn by scripts:
 
 ```sh
-python3 tool/generate_app_icon.py
-dart run flutter_launcher_icons
+python3 tool/generate_app_icon.py        # launcher icon artwork
+dart run flutter_launcher_icons          # → Android/iOS icons
+python3 tool/generate_store_graphics.py  # → store icon + feature graphic
 ```
 
 ## How it's built
