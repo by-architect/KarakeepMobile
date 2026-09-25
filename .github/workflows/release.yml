@@ -1,0 +1,32 @@
+# Tier 2 -- the release pipeline. Slow and expensive, so it runs only for
+# release candidates, never on every push.
+name: release
+
+on:
+  push:
+    branches: ['release/**']
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Toolchain setup, then decode signing material from encrypted secrets:
+      #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+      #   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD, PLAY_SERVICE_ACCOUNT_JSON
+      # Never commit a keystore.
+
+      - name: Verify (release tier)
+        run: ./scripts/verify.sh release
+
+      # Then: upload the signed bundle to the internal track, and open the
+      # release checklist issue from .github/ISSUE_TEMPLATE/release.md.
+      #
+      # Items this tier must cover before submission -- see docs/release/README.md:
+      #   - signed release build installs and runs (R8/minification enabled)
+      #   - bundletool split install, not the universal APK
+      #   - upgrade test: current store version -> candidate, data intact
+      #   - crash reporting symbol/mapping upload verified

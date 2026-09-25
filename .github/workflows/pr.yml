@@ -1,0 +1,26 @@
+# Tier 1 -- the fast gate. Blocks merge. Keep it under ~5 minutes: a gate that
+# is slow gets bypassed, and a bypassed gate is worse than no gate.
+name: pr
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Add the toolchain your fork keeps, e.g.
+      #   - uses: actions/setup-java@v4    with: { distribution: temurin, java-version: 21 }
+      #   - uses: gradle/actions/setup-gradle@v4
+      #   - uses: subosito/flutter-action@v2
+
+      - name: Verify (fast tier)
+        run: ./scripts/verify.sh fast

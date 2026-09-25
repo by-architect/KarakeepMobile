@@ -1,0 +1,23 @@
+# The full device matrix and the expensive checks. Nightly rather than
+# per-PR: premerge keeps a small high-value smoke set, full coverage runs here.
+name: nightly
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify (release tier)
+        run: ./scripts/verify.sh release
+
+      # Add here, per docs/release/README.md:
+      #   - device farm run across the min/target SDK and form-factor matrix
+      #   - macrobenchmark startup + jank, baseline profile regeneration
+      #   - accessibility scanner pass
+      #   - flaky-test report -> quarantine per docs/release/flaky-tests.md
