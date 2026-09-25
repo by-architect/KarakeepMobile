@@ -202,3 +202,20 @@ favourited, archived; actions: add/remove tag/list, archive, favourite, full
 archive), webhooks, import (Netscape HTML, Pocket, Matter, Omnivore, Karakeep,
 Linkwarden, Instapaper, Readwise, mymind, OneTab, Tab Session Manager),
 export (Karakeep JSON, Netscape HTML), scheduled backups, quotas, admin.
+
+## 9. Findings while building the home feed (2026-09-25)
+
+- **No read/unread state.** Karakeep's maintainer: archive *is* "read"; the
+  unarchived home feed is the inbox (issue #579). Reading progress exists
+  (tRPC `bookmarks.updateReadingProgress`/`getReadingProgress`) but isn't
+  searchable.
+- **List + archived filter needs tRPC.** REST `GET /lists/{id}/bookmarks`
+  strips unknown params, so `archived` is ignored. tRPC
+  `bookmarks.getBookmarks({listId, archived})` applies both, smart lists
+  included. Its cursor is `{id, createdAt: Date}` — send it with superjson
+  meta `{"values": {"cursor.createdAt": ["Date"]}}`.
+- **Counts.** tRPC `lists.stats` → total per list (superjson `Map`, i.e.
+  `[[id, n], …]`). REST `/users/me/stats` → `numBookmarks`, `numFavorites`,
+  `numArchived`. There is **no unarchived count** per list or for favorites;
+  the app counts by paging (`limit=100`) in the background, 3 at a time, and
+  caches results on the device.
