@@ -121,8 +121,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Delete'));
       await tester.pumpAndSettle();
-      expect(bookmarks.deleted, ['a']);
       expect(find.text('page b browser'), findsOneWidget);
+      // The server delete waits until Undo is no longer offered.
+      expect(bookmarks.deleted, isEmpty);
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      expect(bookmarks.deleted, ['a']);
     });
 
     testWidgets('title menu switches to reader and remembers it',
@@ -172,7 +176,41 @@ void main() {
       await tester.tap(find.widgetWithText(TextButton, 'Delete'));
       await tester.pumpAndSettle();
       expect(find.text('Article c'), findsNothing);
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
       expect(bookmarks.deleted, ['c']);
+    });
+
+    testWidgets('undo a delete: nothing is deleted on the server',
+        (tester) async {
+      settings
+        ..swipeLeft = SwipeAction.delete
+        ..confirmDelete = false; // no question asked
+      await pumpSignedIn(tester);
+
+      await tester.drag(find.text('Article c'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Article c'), findsNothing);
+      expect(find.text('Deleted'), findsOneWidget);
+
+      await tester.tap(find.text('Undo'));
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      expect(find.text('Article c'), findsOneWidget);
+      expect(bookmarks.deleted, isEmpty);
+    });
+
+    testWidgets('favorite has undo too', (tester) async {
+      await pumpSignedIn(tester);
+      await tester.drag(find.text('Article b'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('Added to favorites'), findsOneWidget);
+      expect(bookmarks.items['all']![1].favourited, isTrue);
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(bookmarks.items['all']![1].favourited, isFalse);
     });
 
     testWidgets('cards show every tag', (tester) async {
@@ -189,6 +227,43 @@ void main() {
         expect(find.text('#tag$i'), findsOneWidget);
       }
     });
+  });
+
+  testWidgets('drawer creates a list and a tag', (tester) async {
+    await pumpSignedIn(tester);
+    await tester.tap(find.byTooltip('Lists'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add list'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Later');
+    await tester.tap(find.text('Create list'));
+    await tester.pumpAndSettle();
+    expect(bookmarks.lists.single.name, 'Later');
+    expect(find.text('Later'), findsOneWidget); // now in the drawer
+
+    await tester.tap(find.text('Add tag'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Tag name'), '#rust');
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    expect(bookmarks.tags.single.name, 'rust');
+    expect(find.text('rust'), findsOneWidget);
+  });
+
+  testWidgets('a smart list needs a query', (tester) async {
+    await pumpSignedIn(tester);
+    await tester.tap(find.byTooltip('Lists'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add list'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Recent');
+    await tester.tap(find.text('Smart'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create list'));
+    await tester.pumpAndSettle();
+    expect(find.text('A smart list needs a search query.'), findsOneWidget);
+    expect(bookmarks.lists, isEmpty);
   });
 
   testWidgets('Tags section shows even when there are no tags',

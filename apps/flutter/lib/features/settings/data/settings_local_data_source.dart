@@ -9,6 +9,7 @@ class SettingsLocalDataSource implements SettingsRepository {
   static const _viewerModeKey = 'settings.viewerMode';
   static const _swipeRightKey = 'settings.swipeRight';
   static const _swipeLeftKey = 'settings.swipeLeft';
+  static const _confirmDeleteKey = 'settings.confirmDelete';
 
   final SharedPreferencesWithCache _prefs;
 
@@ -46,6 +47,13 @@ class SettingsLocalDataSource implements SettingsRepository {
   @override
   Future<void> setSwipeLeft(SwipeAction action) =>
       _prefs.setString(_swipeLeftKey, action.name);
+
+  @override
+  bool get confirmDelete => _prefs.getBool(_confirmDeleteKey) ?? true;
+
+  @override
+  Future<void> setConfirmDelete(bool value) =>
+      _prefs.setBool(_confirmDeleteKey, value);
 
   T _read<T extends Enum>(String key, List<T> values, T fallback) =>
       values.asNameMap()[_prefs.getString(key)] ?? fallback;

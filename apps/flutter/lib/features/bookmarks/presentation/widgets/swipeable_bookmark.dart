@@ -1,12 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../core/error/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/domain/settings_repository.dart';
 import '../../../settings/presentation/settings_view_model.dart';
 import '../../domain/entities/bookmark.dart';
-import '../bookmark_actions.dart';
+import '../bookmark_ui_actions.dart';
 import '../feed_host.dart';
 import 'bookmark_sheets.dart';
 
@@ -71,72 +70,40 @@ class SwipeableBookmark extends ConsumerWidget {
     WidgetRef ref,
     SwipeAction action,
   ) async {
-    final actions = ref.read(bookmarkActionsProvider);
-    try {
-      switch (action) {
-        case SwipeAction.none:
+    switch (action) {
+      case SwipeAction.none:
+        return false;
+      case SwipeAction.favourite:
+        await favouriteWithUndo(context, ref, host, bookmark);
+        return false;
+      case SwipeAction.archive:
+        final after = bookmark.copyWith(archived: !bookmark.archived);
+        if (host.keeps(after)) {
+          await archiveWithUndo(context, ref, host, bookmark);
           return false;
-        case SwipeAction.favourite:
-          await actions.toggleFavourite(host, bookmark);
-          return false;
-        case SwipeAction.archive:
-          final after = bookmark.copyWith(archived: !bookmark.archived);
-          if (host.keeps(after)) {
-            await actions.toggleArchive(host, bookmark);
-            return false;
-          }
-          return true;
-        case SwipeAction.delete:
-          return await confirmDelete(context, bookmark);
-        case SwipeAction.addToList:
-          await showListsSheet(context, host: host, bookmark: bookmark);
-          return false;
-        case SwipeAction.addTag:
-          await showTagsSheet(context, host: host, bookmark: bookmark);
-          return false;
-      }
-    } on Failure catch (f) {
-      if (context.mounted) showFailure(context, f);
-      return false;
+        }
+        return true;
+      case SwipeAction.delete:
+        final ask = ref.read(settingsViewModelProvider).confirmDelete;
+        return !ask || await confirmDelete(context, bookmark);
+      case SwipeAction.addToList:
+        await showListsSheet(context, host: host, bookmark: bookmark);
+        return false;
+      case SwipeAction.addTag:
+        await showTagsSheet(context, host: host, bookmark: bookmark);
+        return false;
     }
   }
 
-  Future<void> _commit(
-    BuildContext context,
-    WidgetRef ref,
-    SwipeAction action,
-  ) async {
-    final actions = ref.read(bookmarkActionsProvider);
-    final messenger = ScaffoldMessenger.of(context);
-    final index = host.indexOf(bookmark.id);
-    try {
-      switch (action) {
-        case SwipeAction.archive:
-          await actions.toggleArchive(host, bookmark);
-          messenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(bookmark.archived ? 'Unarchived' : 'Archived'),
-                action: SnackBarAction(
-                  label: 'Undo',
-                  onPressed: () =>
-                      actions.undoArchive(host, bookmark, index).ignore(),
-                ),
-              ),
-            );
-        case SwipeAction.delete:
-          await actions.delete(host, bookmark);
-          messenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(const SnackBar(content: Text('Deleted')));
-        case _:
-          break;
-      }
-    } on Failure catch (f) {
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(f.message)));
+  /// The card has slid away: make the change, with Undo.
+  void _commit(BuildContext context, WidgetRef ref, SwipeAction action) {
+    switch (action) {
+      case SwipeAction.archive:
+        archiveWithUndo(context, ref, host, bookmark);
+      case SwipeAction.delete:
+        deleteWithUndo(context, ref, host, bookmark, askFirst: false);
+      case _:
+        break;
     }
   }
 }

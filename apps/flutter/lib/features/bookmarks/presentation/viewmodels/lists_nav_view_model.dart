@@ -44,6 +44,32 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
     }
   }
 
+  /// Creates a list and reloads the drawer. Throws `Failure` for the form.
+  Future<BookmarkList> createList({
+    required String name,
+    required String icon,
+    required ListKind kind,
+    String? query,
+    String? parentId,
+  }) async {
+    final list = await _repo.createList(
+      name: name,
+      icon: icon,
+      kind: kind,
+      query: query,
+      parentId: parentId,
+    );
+    unawaited(refresh());
+    return list;
+  }
+
+  /// Creates a tag (with no bookmarks yet) and reloads tags.
+  Future<TagSummary> createTag(String name) async {
+    final tag = await _repo.createTag(name);
+    unawaited(loadTags());
+    return tag;
+  }
+
   /// Something changed on the server (archive, delete, list membership…):
   /// refresh counts next time the drawer opens.
   void markStale() => _lastRefresh = null;

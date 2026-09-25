@@ -86,6 +86,32 @@ class FakeBookmarksRepository implements BookmarksRepository {
   Future<List<TagSummary>> getTags() async => tags;
 
   @override
+  Future<BookmarkList> createList({
+    required String name,
+    required String icon,
+    required ListKind kind,
+    String? query,
+    String? parentId,
+  }) async {
+    final list = BookmarkList(
+      id: 'new-${lists.length}',
+      name: name,
+      icon: icon,
+      kind: kind,
+      parentId: parentId,
+    );
+    lists = [...lists, list];
+    return list;
+  }
+
+  @override
+  Future<TagSummary> createTag(String name) async {
+    final tag = TagSummary(id: 'tag-$name', name: name, count: 0);
+    tags = [...tags, tag];
+    return tag;
+  }
+
+  @override
   Future<List<BookmarkList>> getLists() async {
     if (failure != null) throw failure!;
     return lists;

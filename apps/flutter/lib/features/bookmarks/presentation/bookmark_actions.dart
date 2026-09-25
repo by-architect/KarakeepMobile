@@ -53,17 +53,31 @@ class BookmarkActions {
     }
   }
 
-  Future<void> delete(BookmarkFeedHost host, Bookmark b) async {
+  /// Deleting can't be undone on the server, so it happens in two steps:
+  /// [stageDelete] hides the item now (returns where it was), and
+  /// [commitDelete] tells the server once the chance to undo has passed.
+  int stageDelete(BookmarkFeedHost host, Bookmark b) {
     final index = host.indexOf(b.id);
     host.remove(b.id);
+    return index;
+  }
+
+  void undoDelete(BookmarkFeedHost host, Bookmark b, int index) =>
+      host.restore(b, index);
+
+  Future<void> commitDelete(BookmarkFeedHost host, Bookmark b, int index) async {
     try {
       await _repo.deleteBookmark(b.id);
       _changed();
     } on Failure {
-      host.restore(b, index);
+      host.restore(b, index); // no-op if that screen has closed since
       rethrow;
     }
   }
+
+  /// Stage and commit at once (no undo window).
+  Future<void> delete(BookmarkFeedHost host, Bookmark b) =>
+      commitDelete(host, b, stageDelete(host, b));
 
   Future<Set<String>> listIdsOf(Bookmark b) => _repo.listIdsOf(b.id);
 

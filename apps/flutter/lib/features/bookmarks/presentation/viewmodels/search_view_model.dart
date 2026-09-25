@@ -42,6 +42,9 @@ class SearchViewModel extends Notifier<SearchState> with BookmarkFeedHost {
   set items(List<Bookmark> value) => state = state.copyWith(results: value);
 
   @override
+  bool get isActive => ref.mounted;
+
+  @override
   bool get canLoadMore => state.hasMore;
 
   @override

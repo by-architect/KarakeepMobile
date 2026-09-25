@@ -166,6 +166,20 @@ class BookmarksRemoteDataSource {
     return '${_client.baseUrl}/api${path.substring(start)}?${signed.query}';
   }
 
+  /// REST `POST /api/v1/lists` → the new list.
+  Future<Map<String, Object?>> createList(Map<String, Object?> body) async {
+    final response =
+        await _dio.post<Map<String, Object?>>('/api/v1/lists', data: body);
+    return response.data!;
+  }
+
+  /// REST `POST /api/v1/tags` → `{id, name}`.
+  Future<Map<String, Object?>> createTag(String name) async {
+    final response = await _dio
+        .post<Map<String, Object?>>('/api/v1/tags', data: {'name': name});
+    return response.data!;
+  }
+
   /// REST `GET /api/v1/lists` — own and shared lists, not paginated.
   Future<List<Object?>> getLists() async {
     final response = await _dio.get<Map<String, Object?>>('/api/v1/lists');

@@ -8,6 +8,7 @@ import '../../domain/entities/bookmark_list.dart';
 import '../../domain/entities/bookmark_scope.dart';
 import '../state/lists_nav_state.dart';
 import '../viewmodels/lists_nav_view_model.dart';
+import 'create_list_tag.dart';
 
 /// Left drawer: pick what the feed shows. Every row carries
 /// `unarchived / total`.
@@ -90,6 +91,10 @@ class ListsDrawer extends ConsumerWidget {
                       busy: state.counting,
                     ),
                     ..._lists(state, scopeRow, vm),
+                    _AddRow(
+                      label: 'Add list',
+                      onTap: () => showCreateListSheet(context),
+                    ),
                     const _SectionHeader(title: 'TAGS', legend: 'total'),
                     if (!state.tagsLoaded)
                       const _Loading()
@@ -121,6 +126,10 @@ class ListsDrawer extends ConsumerWidget {
                           ),
                         ),
                     ],
+                    _AddRow(
+                      label: 'Add tag',
+                      onTap: () => showCreateTagDialog(context),
+                    ),
                   ],
                 ),
               ),
@@ -474,6 +483,39 @@ class _ErrorRetry extends StatelessWidget {
           ),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
+      ),
+    );
+  }
+}
+
+class _AddRow extends StatelessWidget {
+  const _AddRow({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 22,
+              child: Center(
+                child: Icon(Icons.add_rounded, size: 20, color: AppColors.primary),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 15, color: AppColors.primary),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -42,6 +42,17 @@ abstract interface class BookmarksRepository {
   /// Tags by usage, most used first.
   Future<List<TagSummary>> getTags();
 
+  /// A smart list needs a [query] (search syntax); a manual one ignores it.
+  Future<BookmarkList> createList({
+    required String name,
+    required String icon,
+    required ListKind kind,
+    String? query,
+    String? parentId,
+  });
+
+  Future<TagSummary> createTag(String name);
+
   /// Total items per list id (archived included).
   Future<Map<String, int>> getListTotals();
 

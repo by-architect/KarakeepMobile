@@ -10,6 +10,7 @@ class SettingsState {
     required this.viewerMode,
     required this.swipeRight,
     required this.swipeLeft,
+    required this.confirmDelete,
     this.clearingCache = false,
   });
 
@@ -17,6 +18,7 @@ class SettingsState {
   final ViewerMode viewerMode;
   final SwipeAction swipeRight;
   final SwipeAction swipeLeft;
+  final bool confirmDelete;
   final bool clearingCache;
 
   SettingsState copyWith({
@@ -24,6 +26,7 @@ class SettingsState {
     ViewerMode? viewerMode,
     SwipeAction? swipeRight,
     SwipeAction? swipeLeft,
+    bool? confirmDelete,
     bool? clearingCache,
   }) =>
       SettingsState(
@@ -31,6 +34,7 @@ class SettingsState {
         viewerMode: viewerMode ?? this.viewerMode,
         swipeRight: swipeRight ?? this.swipeRight,
         swipeLeft: swipeLeft ?? this.swipeLeft,
+        confirmDelete: confirmDelete ?? this.confirmDelete,
         clearingCache: clearingCache ?? this.clearingCache,
       );
 }
@@ -50,6 +54,7 @@ class SettingsViewModel extends Notifier<SettingsState> {
       viewerMode: repo.viewerMode,
       swipeRight: repo.swipeRight,
       swipeLeft: repo.swipeLeft,
+      confirmDelete: repo.confirmDelete,
     );
   }
 
@@ -71,6 +76,11 @@ class SettingsViewModel extends Notifier<SettingsState> {
   Future<void> setSwipeLeft(SwipeAction action) async {
     state = state.copyWith(swipeLeft: action);
     await _repo.setSwipeLeft(action);
+  }
+
+  Future<void> setConfirmDelete(bool value) async {
+    state = state.copyWith(confirmDelete: value);
+    await _repo.setConfirmDelete(value);
   }
 
   /// Completes when done, so the screen can confirm with a snackbar.

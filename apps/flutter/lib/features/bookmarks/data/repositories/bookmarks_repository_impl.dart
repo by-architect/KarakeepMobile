@@ -104,6 +104,35 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
       });
 
   @override
+  Future<BookmarkList> createList({
+    required String name,
+    required String icon,
+    required ListKind kind,
+    String? query,
+    String? parentId,
+  }) =>
+      _guard(() async {
+        final json = await _remote.createList({
+          'name': name.trim(),
+          'icon': icon,
+          'type': kind == ListKind.smart ? 'smart' : 'manual',
+          if (kind == ListKind.smart) 'query': query?.trim(),
+          'parentId': ?parentId,
+        });
+        return BookmarkJson.list(json);
+      });
+
+  @override
+  Future<TagSummary> createTag(String name) => _guard(() async {
+        final json = await _remote.createTag(name.trim());
+        return TagSummary(
+          id: json['id']! as String,
+          name: json['name']! as String,
+          count: 0,
+        );
+      });
+
+  @override
   Future<List<BookmarkList>> getLists() => _guard(() async {
         final lists = await _remote.getLists();
         return [

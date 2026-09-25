@@ -35,6 +35,10 @@ abstract interface class SettingsRepository {
   /// Swipe to the left (end → start).
   SwipeAction get swipeLeft;
   Future<void> setSwipeLeft(SwipeAction action);
+
+  /// Ask "Delete bookmark?" first. When off, deleting relies on Undo.
+  bool get confirmDelete;
+  Future<void> setConfirmDelete(bool value);
 }
 
 /// Drops locally cached data: images, and anything else that is only a

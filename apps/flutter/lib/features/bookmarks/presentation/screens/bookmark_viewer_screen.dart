@@ -4,12 +4,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../core/error/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../settings/domain/settings_repository.dart';
 import '../../../settings/presentation/settings_view_model.dart';
 import '../../domain/entities/bookmark.dart';
-import '../bookmark_actions.dart';
+import '../bookmark_ui_actions.dart';
 import '../feed_host.dart';
 import '../widgets/bookmark_page_views.dart';
 import '../widgets/bookmark_sheets.dart';
@@ -41,7 +40,6 @@ class _BookmarkViewerScreenState extends ConsumerState<BookmarkViewerScreen> {
   String? _currentId;
 
   BookmarkFeedHost get _host => feedHost(ref, widget.source);
-  BookmarkActions get _actions => ref.read(bookmarkActionsProvider);
 
   @override
   void initState() {
@@ -81,39 +79,8 @@ class _BookmarkViewerScreenState extends ConsumerState<BookmarkViewerScreen> {
     });
   }
 
-  Future<void> _guard(Future<void> Function() action) async {
-    try {
-      await action();
-    } on Failure catch (f) {
-      if (mounted) showFailure(context, f);
-    }
-  }
-
-  Future<void> _toggleArchive(Bookmark b) => _guard(() async {
-        final index = _host.indexOf(b.id);
-        final after = await _actions.toggleArchive(_host, b);
-        if (!mounted || _host.indexOf(b.id) >= 0) return;
-        // It left the feed; the next bookmark is now on screen.
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(after.archived ? 'Archived' : 'Unarchived'),
-              action: SnackBarAction(
-                label: 'Undo',
-                onPressed: () => _guard(() {
-                  _currentId = b.id; // show it again once it's back
-                  return _actions.undoArchive(_host, b, index);
-                }),
-              ),
-            ),
-          );
-      });
-
-  Future<void> _delete(Bookmark b) async {
-    if (!await confirmDelete(context, b)) return;
-    await _guard(() => _actions.delete(_host, b));
-  }
+  /// Show [b] again once Undo brings it back.
+  void _showAgain(Bookmark b) => _currentId = b.id;
 
   Future<void> _share(Bookmark b) async {
     final url = b.url;
@@ -172,12 +139,23 @@ class _BookmarkViewerScreenState extends ConsumerState<BookmarkViewerScreen> {
         bookmark: current,
         position: '${_index + 1} / ${items.length}${_host.canLoadMore ? '+' : ''}',
         onLists: () => showListsSheet(context, host: _host, bookmark: current),
-        onFavourite: () =>
-            _guard(() => _actions.toggleFavourite(_host, current)),
+        onFavourite: () => favouriteWithUndo(context, ref, _host, current),
         onShare: () => _share(current),
         onBrowser: current.url == null ? null : () => _openExternally(current),
-        onArchive: () => _toggleArchive(current),
-        onDelete: () => _delete(current),
+        onArchive: () => archiveWithUndo(
+          context,
+          ref,
+          _host,
+          current,
+          onUndo: () => _showAgain(current),
+        ),
+        onDelete: () => deleteWithUndo(
+          context,
+          ref,
+          _host,
+          current,
+          onUndo: () => _showAgain(current),
+        ),
         onTags: () => showTagsSheet(context, host: _host, bookmark: current),
         onCopy: current.url == null
             ? null

@@ -41,6 +41,9 @@ class HomeFeedViewModel extends Notifier<HomeFeedState>
   set items(List<Bookmark> value) => state = state.copyWith(bookmarks: value);
 
   @override
+  bool get isActive => ref.mounted;
+
+  @override
   bool get canLoadMore => state.hasMore;
 
   @override

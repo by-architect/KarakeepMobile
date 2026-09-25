@@ -69,6 +69,17 @@ class SettingsScreen extends ConsumerWidget {
                     .read(homeFeedViewModelProvider.notifier)
                     .setShowArchived,
               ),
+              SwitchListTile(
+                title: const Text('Ask before deleting'),
+                subtitle: const Text(
+                  'When off, deleting is instant — you still get Undo.',
+                  style: TextStyle(fontSize: 13, color: AppColors.muted),
+                ),
+                value: state.confirmDelete,
+                activeThumbColor: AppColors.foreground,
+                activeTrackColor: AppColors.primary,
+                onChanged: vm.setConfirmDelete,
+              ),
               _Segmented<ViewerMode>(
                 label: 'In-app view',
                 value: state.viewerMode,

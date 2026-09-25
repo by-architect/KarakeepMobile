@@ -11,6 +11,8 @@ class InMemorySettings implements SettingsRepository {
   SwipeAction swipeRight = SwipeAction.archive;
   @override
   SwipeAction swipeLeft = SwipeAction.favourite;
+  @override
+  bool confirmDelete = true;
 
   @override
   Future<void> setLinkOpenMode(LinkOpenMode mode) async => linkOpenMode = mode;
@@ -20,6 +22,8 @@ class InMemorySettings implements SettingsRepository {
   Future<void> setSwipeRight(SwipeAction action) async => swipeRight = action;
   @override
   Future<void> setSwipeLeft(SwipeAction action) async => swipeLeft = action;
+  @override
+  Future<void> setConfirmDelete(bool value) async => confirmDelete = value;
 }
 
 class FakeCacheCleaner implements CacheCleaner {
