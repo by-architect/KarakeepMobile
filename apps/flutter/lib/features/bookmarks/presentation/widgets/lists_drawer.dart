@@ -4,7 +4,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/auth_providers.dart';
-import '../../../auth/presentation/viewmodels/session_controller.dart';
 import '../../domain/entities/bookmark_list.dart';
 import '../../domain/entities/bookmark_scope.dart';
 import '../state/lists_nav_state.dart';
@@ -17,10 +16,15 @@ class ListsDrawer extends ConsumerWidget {
     super.key,
     required this.selected,
     required this.onSelect,
+    required this.onOpenSettings,
   });
+
+  /// Tags shown before "Show all".
+  static const topTags = 10;
 
   final BookmarkScope selected;
   final ValueChanged<BookmarkScope> onSelect;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,13 +38,14 @@ class ListsDrawer extends ConsumerWidget {
       int depth = 0,
       bool smart = false,
       bool totalOnly = false,
+      ItemCount? count,
     }) {
       return _ScopeRow(
         leading: leading,
         label: label,
         depth: depth,
         smart: smart,
-        count: state.counts[scope.key],
+        count: count ?? state.counts[scope.key],
         totalOnly: totalOnly,
         selected: scope == selected,
         onTap: () => onSelect(scope),
@@ -79,21 +84,56 @@ class ListsDrawer extends ConsumerWidget {
                       label: 'Archived',
                       totalOnly: true,
                     ),
-                    _SectionHeader(counting: state.counting),
+                    _SectionHeader(
+                      title: 'LISTS',
+                      legend: 'unarchived / total',
+                      busy: state.counting,
+                    ),
                     ..._lists(state, scopeRow, vm),
+                    const _SectionHeader(title: 'TAGS', legend: 'total'),
+                    if (!state.tagsLoaded)
+                      const _Loading()
+                    else if (state.tagsError != null)
+                      _ErrorRetry(message: state.tagsError!, onRetry: vm.loadTags)
+                    else if (state.tags.isEmpty)
+                      const _Hint('No tags yet.')
+                    else ...[
+                      for (final tag in state.showAllTags
+                          ? state.tags
+                          : state.tags.take(topTags))
+                        scopeRow(
+                          TagScope(id: tag.id, name: tag.name),
+                          leading: const _RowIcon(Icons.tag_rounded),
+                          label: tag.name,
+                          totalOnly: true,
+                          count: ItemCount(total: tag.count),
+                        ),
+                      if (state.tags.length > topTags)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: vm.toggleAllTags,
+                            child: Text(
+                              state.showAllTags
+                                  ? 'Show fewer'
+                                  : 'Show all ${state.tags.length} tags',
+                            ),
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               ),
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout_rounded,
-                  color: AppColors.destructive, size: 20),
-              title: const Text(
-                'Sign out',
-                style: TextStyle(color: AppColors.destructive, fontSize: 15),
+              leading: const Icon(
+                Icons.settings_outlined,
+                color: AppColors.mutedForeground,
+                size: 20,
               ),
-              onTap: () => ref.read(sessionControllerProvider.notifier).signOut(),
+              title: const Text('Settings', style: TextStyle(fontSize: 15)),
+              onTap: onOpenSettings,
             ),
           ],
         ),
@@ -110,46 +150,22 @@ class ListsDrawer extends ConsumerWidget {
       int depth,
       bool smart,
       bool totalOnly,
+      ItemCount? count,
     }) scopeRow,
     ListsNavViewModel vm,
   ) {
     switch (state.status) {
       case ListsStatus.loading when state.lists.isEmpty:
-        return const [
-          Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(
-              child: SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          ),
-        ];
+        return const [_Loading()];
       case ListsStatus.error:
         return [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Text(
-              state.error ?? 'Couldn’t load lists.',
-              style: const TextStyle(fontSize: 13, color: AppColors.destructive),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(onPressed: vm.refresh, child: const Text('Retry')),
+          _ErrorRetry(
+            message: state.error ?? 'Couldn’t load lists.',
+            onRetry: vm.refresh,
           ),
         ];
       case _ when state.lists.isEmpty:
-        return const [
-          Padding(
-            padding: EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: Text(
-              'No lists yet. Create them on the web for now.',
-              style: TextStyle(fontSize: 13, color: AppColors.muted),
-            ),
-          ),
-        ];
+        return const [_Hint('No lists yet. Create them on the web for now.')];
       case _:
         return [
           for (final entry in state.lists)
@@ -231,9 +247,18 @@ class _AccountHeader extends ConsumerWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.counting});
+  const _SectionHeader({
+    required this.title,
+    required this.legend,
+    this.busy = false,
+  });
 
-  final bool counting;
+  final String title;
+
+  /// What the numbers on the right mean.
+  final String legend;
+
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -241,17 +266,17 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 6),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              'LISTS',
-              style: TextStyle(
+              title,
+              style: const TextStyle(
                 fontSize: 12,
                 letterSpacing: 0.4,
                 color: AppColors.muted,
               ),
             ),
           ),
-          if (counting)
+          if (busy)
             const Tooltip(
               message: 'Updating counts',
               child: SizedBox.square(
@@ -263,10 +288,10 @@ class _SectionHeader extends StatelessWidget {
               ),
             ),
           const SizedBox(width: 8),
-          const Text(
-            'unarchived / total',
+          Text(
+            legend,
             maxLines: 1,
-            style: TextStyle(fontSize: 11, color: AppColors.muted),
+            style: const TextStyle(fontSize: 11, color: AppColors.muted),
           ),
         ],
       ),
@@ -294,7 +319,8 @@ class _ScopeRow extends StatelessWidget {
   final int depth;
   final bool smart;
 
-  /// Archived: its unarchived count is always 0, so only the total shows.
+  /// Only the total shows: Archived (its unarchived count is always 0) and
+  /// tags (counting each would cost a request per tag).
   final bool totalOnly;
 
   @override
@@ -393,4 +419,62 @@ class _Emoji extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Text(emoji, style: const TextStyle(fontSize: 17));
+}
+
+class _Loading extends StatelessWidget {
+  const _Loading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(20),
+      child: Center(
+        child: SizedBox.square(
+          dimension: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    );
+  }
+}
+
+class _Hint extends StatelessWidget {
+  const _Hint(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 13, color: AppColors.muted),
+      ),
+    );
+  }
+}
+
+class _ErrorRetry extends StatelessWidget {
+  const _ErrorRetry({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message,
+            style: const TextStyle(fontSize: 13, color: AppColors.destructive),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
 }

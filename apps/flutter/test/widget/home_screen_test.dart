@@ -7,14 +7,18 @@ import 'package:karakeep_client/features/auth/domain/entities/session.dart';
 import 'package:karakeep_client/features/bookmarks/bookmarks_providers.dart';
 import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_list.dart';
 import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:karakeep_client/features/settings/domain/settings_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../unit/auth/fake_auth_repository.dart';
 import '../unit/bookmarks/fakes.dart';
+import '../unit/settings/fakes.dart';
 
 void main() {
   late FakeBookmarksRepository bookmarks;
   late InMemoryHomePreferences prefs;
+  late InMemorySettings settings;
+  late FakeCacheCleaner cleaner;
 
   Future<void> pumpSignedIn(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1179, 2556);
@@ -32,6 +36,7 @@ void main() {
           authRepositoryProvider.overrideWithValue(auth),
           bookmarksRepositoryProvider.overrideWithValue(bookmarks),
           homePreferencesProvider.overrideWithValue(prefs),
+          ...settingsOverrides(settings: settings, cleaner: cleaner),
         ],
         child: const App(),
       ),
@@ -62,7 +67,14 @@ void main() {
         'list:L2': [link('p1')],
       },
     );
+    bookmarks.tags = const [
+      TagSummary(id: 'T1', name: 'flutter', count: 7),
+      TagSummary(id: 'T2', name: 'rust', count: 2),
+    ];
+    bookmarks.items['tag:T1'] = [link('t1'), link('t2', archived: true)];
     prefs = InMemoryHomePreferences();
+    settings = InMemorySettings();
+    cleaner = FakeCacheCleaner();
   });
 
   testWidgets('drawer lists scopes with unarchived / total', (tester) async {
@@ -109,5 +121,76 @@ void main() {
 
     expect(find.text('Reading'), findsOneWidget); // app bar title
     expect(find.text('Article r2'), findsOneWidget); // archived, shown
+  });
+
+  testWidgets('tags sit under lists and filter the feed', (tester) async {
+    await pumpSignedIn(tester);
+    await openDrawer(tester);
+
+    expect(find.text('TAGS'), findsOneWidget);
+    expect(find.text('7'), findsOneWidget); // total only for tags
+    await tester.tap(find.text('flutter'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('#flutter'), findsOneWidget); // app bar title
+    expect(find.text('Article t1'), findsOneWidget);
+    expect(find.text('Article t2'), findsNothing); // archived hidden
+  });
+
+  testWidgets('search starts inside the open list', (tester) async {
+    prefs.scopes['https://keep.example.com|u1'] =
+        const ListScope(id: 'L1', name: 'Reading', icon: '📚');
+    bookmarks.searchResults['dart list:Reading -is:archived'] = [
+      link('s1', title: 'Found it'),
+    ];
+    bookmarks.searchResults['dart -is:archived'] = [
+      link('s2', title: 'Found everywhere'),
+    ];
+    await pumpSignedIn(tester);
+
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+    expect(find.text('In 📚 Reading'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'dart');
+    await tester.pump(const Duration(milliseconds: 400)); // debounce
+    await tester.pumpAndSettle();
+    expect(find.text('Found it'), findsOneWidget);
+
+    // Remove the scope chip: search everywhere.
+    await tester.tap(find.byTooltip('Search everywhere'));
+    await tester.pumpAndSettle();
+    expect(find.text('Found everywhere'), findsOneWidget);
+  });
+
+  testWidgets('settings drive the feed filter and are saved', (tester) async {
+    await pumpSignedIn(tester);
+    await openDrawer(tester);
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ada'), findsOneWidget);
+
+    await tester.tap(find.text('Show archived'));
+    await tester.pumpAndSettle();
+    expect(prefs.showArchived, isTrue);
+
+    await tester.tap(find.text('Browser app'));
+    await tester.pumpAndSettle();
+    expect(settings.linkOpenMode, LinkOpenMode.externalBrowser);
+
+    await tester.scrollUntilVisible(find.text('Clear cache'), 200);
+    await tester.tap(find.text('Clear cache'));
+    await tester.pumpAndSettle();
+    expect(cleaner.cleared, 1);
+    expect(find.text('Cache cleared'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('1.0.0 (1)'), 200);
+    expect(find.text('1.0.0 (1)'), findsOneWidget);
+
+    // Back on home, archived items now show.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Article b'), findsOneWidget);
   });
 }

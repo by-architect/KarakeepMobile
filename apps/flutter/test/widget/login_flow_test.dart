@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../unit/auth/fake_auth_repository.dart';
 import '../unit/bookmarks/fakes.dart';
+import '../unit/settings/fakes.dart';
 
 void main() {
   late FakeAuthRepository repo;
@@ -26,6 +27,7 @@ void main() {
             FakeBookmarksRepository(items: {'all': [link('a')]}),
           ),
           homePreferencesProvider.overrideWithValue(InMemoryHomePreferences()),
+          ...settingsOverrides(),
         ],
         child: const App(),
       ),
@@ -67,7 +69,13 @@ void main() {
     expect(find.text('Ada'), findsOneWidget);
     expect(find.text('keep.example.com'), findsOneWidget);
 
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Sign out'), 200);
     await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    // Confirm in the dialog.
+    await tester.tap(find.widgetWithText(TextButton, 'Sign out'));
     await tester.pumpAndSettle();
     expect(find.text('Sign in to your Karakeep server'), findsOneWidget);
   });

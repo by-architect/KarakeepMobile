@@ -203,4 +203,65 @@ void main() {
     expect(await r.countUnarchived(const FavouritesScope()), 107);
     expect(page, 2);
   });
+
+  test('search sends q and an offset cursor', () async {
+    final r = repo({
+      'GET /api/v1/bookmarks/search': (_) => (
+            status: 200,
+            body: {
+              'bookmarks': [bookmarkJson('s')],
+              'nextCursor': 30,
+            },
+          ),
+    });
+    final page = await r.search('rust #dev -is:archived', cursor: '30');
+    final q = adapter.requests.single.uri.queryParameters;
+    expect(q['q'], 'rust #dev -is:archived');
+    expect(q['cursor'], '30');
+    expect(page.nextCursor, '30');
+    expect(page.bookmarks.single.id, 's');
+  });
+
+  test('tags come sorted by usage with their totals', () async {
+    final r = repo({
+      'GET /api/v1/tags': (o) {
+        expect(o.uri.queryParameters['sort'], 'usage');
+        return (
+          status: 200,
+          body: {
+            'tags': [
+              {
+                'id': 'T1',
+                'name': 'flutter',
+                'numBookmarks': 7,
+                'numBookmarksByAttachedType': {'ai': 5, 'human': 2},
+              },
+            ],
+            'nextCursor': null,
+          },
+        );
+      },
+    });
+    final tag = (await r.getTags()).single;
+    expect((tag.id, tag.name, tag.count), ('T1', 'flutter', 7));
+  });
+
+  test('a tag feed uses tRPC with tagId', () async {
+    final r = repo({
+      'GET /api/trpc/bookmarks.getBookmarks': (_) => (
+            status: 200,
+            body: trpc({'bookmarks': [], 'nextCursor': null}),
+          ),
+    });
+    await r.getBookmarks(
+      const TagScope(id: 'T1', name: 'flutter'),
+      includeArchived: false,
+    );
+    final input = jsonDecode(
+      adapter.requests.single.uri.queryParameters['input']!,
+    ) as Map;
+    expect(input['json'], containsPair('tagId', 'T1'));
+    expect(input['json'], isNot(contains('listId')));
+    expect(input['json'], containsPair('archived', false));
+  });
 }

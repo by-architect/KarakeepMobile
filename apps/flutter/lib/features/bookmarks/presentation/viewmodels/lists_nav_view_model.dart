@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
@@ -29,6 +31,25 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
     Future.microtask(refresh);
     return ListsNavState(counts: cached);
   }
+
+  Future<void> loadTags() async {
+    state = state.copyWith(tagsError: () => null);
+    try {
+      final tags = await _repo.getTags();
+      if (!ref.mounted) return;
+      state = state.copyWith(tags: tags, tagsLoaded: true);
+    } on Failure catch (f) {
+      if (!ref.mounted) return;
+      state = state.copyWith(tagsLoaded: true, tagsError: () => f.message);
+    }
+  }
+
+  /// Something changed on the server (archive, delete, list membership…):
+  /// refresh counts next time the drawer opens.
+  void markStale() => _lastRefresh = null;
+
+  void toggleAllTags() =>
+      state = state.copyWith(showAllTags: !state.showAllTags);
 
   /// Called when the drawer opens; skips if the data is recent.
   void refreshIfStale() {
@@ -77,6 +98,7 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
         counting: true,
         error: () => null,
       );
+      unawaited(loadTags());
       await _countUnarchived(generation, [
         const FavouritesScope(),
         for (final list in lists)

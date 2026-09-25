@@ -33,6 +33,11 @@ class FakeBookmarksRepository implements BookmarksRepository {
 
   final Map<String, List<Bookmark>> items;
   List<BookmarkList> lists;
+  List<TagSummary> tags = const [];
+
+  /// Results for [search], keyed by the exact query string.
+  final searchResults = <String, List<Bookmark>>{};
+  final searchQueries = <String>[];
   final int pageSize;
   Failure? failure;
 
@@ -71,6 +76,16 @@ class FakeBookmarksRepository implements BookmarksRepository {
   }
 
   @override
+  Future<BookmarkPage> search(String query, {String? cursor}) async {
+    searchQueries.add(query);
+    if (failure != null) throw failure!;
+    return BookmarkPage(bookmarks: searchResults[query] ?? const []);
+  }
+
+  @override
+  Future<List<TagSummary>> getTags() async => tags;
+
+  @override
   Future<List<BookmarkList>> getLists() async {
     if (failure != null) throw failure!;
     return lists;
@@ -91,6 +106,95 @@ class FakeBookmarksRepository implements BookmarksRepository {
       archived: all.where((b) => b.archived).length,
     );
   }
+
+  // ── Mutations: applied to every scope's items, like the server would. ──
+
+  /// Ids whose mutations fail, to test rollbacks.
+  final failing = <String>{};
+  final deleted = <String>[];
+  final listMembership = <String, Set<String>>{};
+
+  void _check(String id) {
+    if (failing.contains(id)) throw const NetworkFailure();
+  }
+
+  void _updateEverywhere(String id, Bookmark Function(Bookmark) change) {
+    for (final entry in items.entries) {
+      items[entry.key] = [
+        for (final b in entry.value) b.id == id ? change(b) : b,
+      ];
+    }
+  }
+
+  Bookmark _find(String id) =>
+      items.values.expand((l) => l).firstWhere((b) => b.id == id);
+
+  @override
+  Future<Bookmark> getBookmark(String id) async => _find(id);
+
+  @override
+  Future<String?> getReaderHtml(String id) async => '<p>Reader $id</p>';
+
+  @override
+  Future<void> setFavourited(String id, bool value) async {
+    _check(id);
+    _updateEverywhere(id, (b) => b.copyWith(favourited: value));
+  }
+
+  @override
+  Future<void> setArchived(String id, bool value) async {
+    _check(id);
+    _updateEverywhere(id, (b) => b.copyWith(archived: value));
+  }
+
+  @override
+  Future<void> deleteBookmark(String id) async {
+    _check(id);
+    deleted.add(id);
+    for (final entry in items.entries) {
+      items[entry.key] = entry.value.where((b) => b.id != id).toList();
+    }
+  }
+
+  @override
+  Future<Set<String>> listIdsOf(String bookmarkId) async =>
+      {...?listMembership[bookmarkId]};
+
+  @override
+  Future<void> addToList(String listId, String bookmarkId) async {
+    _check(bookmarkId);
+    listMembership.putIfAbsent(bookmarkId, () => {}).add(listId);
+  }
+
+  @override
+  Future<void> removeFromList(String listId, String bookmarkId) async {
+    _check(bookmarkId);
+    listMembership[bookmarkId]?.remove(listId);
+  }
+
+  @override
+  Future<void> attachTag(String bookmarkId, String tagName) async {
+    _check(bookmarkId);
+    _updateEverywhere(
+      bookmarkId,
+      (b) => b.copyWith(
+        tags: [...b.tags, BookmarkTag(id: 'tag-$tagName', name: tagName)],
+      ),
+    );
+  }
+
+  @override
+  Future<void> detachTag(String bookmarkId, String tagId) async {
+    _check(bookmarkId);
+    _updateEverywhere(
+      bookmarkId,
+      (b) => b.copyWith(tags: b.tags.where((t) => t.id != tagId).toList()),
+    );
+  }
+
+  @override
+  Future<String> openableAssetUrl(String assetId) async =>
+      'https://keep.example.com/api/public/assets/$assetId?token=t';
 
   @override
   Future<int> countUnarchived(BookmarkScope scope) async {

@@ -53,6 +53,7 @@ class HomePreferencesLocalDataSource implements HomePreferencesRepository {
           'name': name,
           'icon': icon,
         },
+        if (scope case TagScope(:final name)) 'name': name,
       }),
     );
   }

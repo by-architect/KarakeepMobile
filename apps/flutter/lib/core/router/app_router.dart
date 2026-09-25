@@ -4,12 +4,22 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/viewmodels/session_controller.dart';
+import '../../features/bookmarks/presentation/feed_host.dart';
+import '../../features/bookmarks/presentation/screens/bookmark_viewer_screen.dart';
 import '../../features/bookmarks/presentation/screens/bookmarks_home_screen.dart';
+import '../../features/bookmarks/presentation/screens/search_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 
 abstract final class Routes {
   static const splash = '/';
   static const login = '/login';
   static const home = '/home';
+  static const search = '/home/search';
+  static const settings = '/home/settings';
+
+  /// The in-app viewer; `from` says which feed to page through.
+  static String viewer(String bookmarkId, {required String from}) =>
+      '/home/view/$bookmarkId?from=$from';
 }
 
 /// Session-driven routing: signed-out users land on login, signed-in users
@@ -35,7 +45,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: Routes.splash, builder: (_, _) => const _Splash()),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
-      GoRoute(path: Routes.home, builder: (_, _) => const BookmarksHomeScreen()),
+      GoRoute(
+        path: Routes.home,
+        builder: (_, _) => const BookmarksHomeScreen(),
+        routes: [
+          GoRoute(path: 'search', builder: (_, _) => const SearchScreen()),
+          GoRoute(path: 'settings', builder: (_, _) => const SettingsScreen()),
+          GoRoute(
+            path: 'view/:id',
+            builder: (_, state) => BookmarkViewerScreen(
+              bookmarkId: state.pathParameters['id']!,
+              source: FeedSource.values.asNameMap()[
+                      state.uri.queryParameters['from']] ??
+                  FeedSource.home,
+            ),
+          ),
+        ],
+      ),
     ],
   );
   ref.onDispose(router.dispose);

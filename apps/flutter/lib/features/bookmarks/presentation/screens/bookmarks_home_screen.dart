@@ -1,16 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/inline_banner.dart';
-import '../../domain/entities/bookmark.dart';
 import '../../domain/entities/bookmark_scope.dart';
+import '../feed_host.dart';
+import '../open_bookmark.dart';
 import '../state/home_feed_state.dart';
 import '../viewmodels/home_feed_view_model.dart';
 import '../viewmodels/lists_nav_view_model.dart';
 import '../widgets/bookmark_card.dart';
 import '../widgets/lists_drawer.dart';
+import '../widgets/swipeable_bookmark.dart';
 
 /// Home: the bookmark feed for the scope picked in the drawer.
 class BookmarksHomeScreen extends ConsumerStatefulWidget {
@@ -43,21 +46,9 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
         ref.read(listsNavViewModelProvider.notifier).refresh(),
       ]);
 
-  Future<void> _open(Bookmark bookmark) async {
-    final url = switch (bookmark.content) {
-      LinkContent(:final url) => url,
-      TextContent(:final sourceUrl?) => sourceUrl,
-      AssetContent(:final sourceUrl?) => sourceUrl,
-      _ => null,
-    };
-    final uri = url == null ? null : Uri.tryParse(url);
-    if (uri == null) return;
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Couldn’t open this link.')),
-      );
-    }
+  void _openSettings() {
+    Navigator.of(context).pop(); // close the drawer
+    context.push(Routes.settings);
   }
 
   @override
@@ -70,7 +61,11 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
       onDrawerChanged: (open) {
         if (open) ref.read(listsNavViewModelProvider.notifier).refreshIfStale();
       },
-      drawer: ListsDrawer(selected: state.scope, onSelect: _select),
+      drawer: ListsDrawer(
+        selected: state.scope,
+        onSelect: _select,
+        onOpenSettings: _openSettings,
+      ),
       appBar: AppBar(
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
@@ -84,6 +79,11 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
         titleSpacing: 0,
         title: _ScopeTitle(scope: state.scope),
         actions: [
+          IconButton(
+            tooltip: 'Search',
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () => context.push(Routes.search),
+          ),
           _FilterMenu(
             showArchived: state.showArchived,
             enabled: state.archivedFilterApplies,
@@ -138,10 +138,19 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
             itemBuilder: (context, i) {
               if (i == state.bookmarks.length) return _footer(state);
               final bookmark = state.bookmarks[i];
-              return BookmarkCard(
+              return SwipeableBookmark(
                 key: ValueKey(bookmark.id),
+                host: _vm,
                 bookmark: bookmark,
-                onTap: () => _open(bookmark),
+                child: BookmarkCard(
+                  bookmark: bookmark,
+                  onTap: () => openBookmark(
+                    context,
+                    ref,
+                    bookmark,
+                    source: FeedSource.home,
+                  ),
+                ),
               );
             },
           ),
@@ -177,6 +186,7 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
         FavouritesScope() => 'No favorites yet',
         ArchivedScope() => 'Nothing archived',
         ListScope() => 'This list is empty',
+        TagScope(:final name) => 'Nothing tagged #$name',
       };
 }
 
@@ -192,6 +202,7 @@ class _ScopeTitle extends StatelessWidget {
       FavouritesScope() => (null, 'Favorites'),
       ArchivedScope() => (null, 'Archived'),
       ListScope(:final icon, :final name) => (icon, name),
+      TagScope(:final name) => (null, '#$name'),
     };
     return Row(
       children: [

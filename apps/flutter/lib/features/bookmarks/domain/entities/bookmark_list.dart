@@ -27,3 +27,12 @@ class ItemCount {
   final int total;
   final int? unarchived;
 }
+
+/// A tag with how many bookmarks carry it (archived included).
+class TagSummary {
+  const TagSummary({required this.id, required this.name, required this.count});
+
+  final String id;
+  final String name;
+  final int count;
+}

@@ -15,6 +15,10 @@ sealed class BookmarkScope {
           name: name ?? 'List',
           icon: icon ?? '📋',
         ),
+      _ when key.startsWith(TagScope.prefix) => TagScope(
+          id: key.substring(TagScope.prefix.length),
+          name: name ?? 'tag',
+        ),
       _ => null,
     };
   }
@@ -59,6 +63,20 @@ final class ListScope extends BookmarkScope {
   /// Kept with the scope so the title shows before lists have loaded.
   final String name;
   final String icon;
+
+  @override
+  String get key => '$prefix$id';
+}
+
+final class TagScope extends BookmarkScope {
+  const TagScope({required this.id, required this.name});
+
+  static const prefix = 'tag:';
+
+  final String id;
+
+  /// Kept with the scope so the title shows before tags have loaded.
+  final String name;
 
   @override
   String get key => '$prefix$id';

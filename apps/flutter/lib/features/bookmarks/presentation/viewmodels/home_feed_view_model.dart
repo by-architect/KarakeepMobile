@@ -2,14 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../bookmarks_providers.dart';
+import '../../domain/entities/bookmark.dart';
 import '../../domain/entities/bookmark_scope.dart';
+import '../../domain/feed_rules.dart';
 import '../../domain/repositories/bookmarks_repository.dart';
 import '../../domain/repositories/home_preferences_repository.dart';
+import '../feed_host.dart';
 import '../state/home_feed_state.dart';
 
 /// The bookmark feed on the home screen: which scope, whether archived items
 /// show, and paging. Scope and filter are remembered on the device.
-class HomeFeedViewModel extends Notifier<HomeFeedState> {
+class HomeFeedViewModel extends Notifier<HomeFeedState>
+    with BookmarkFeedHost {
   /// Bumped whenever the query changes, so late pages of an old query drop.
   var _generation = 0;
 
@@ -27,6 +31,33 @@ class HomeFeedViewModel extends Notifier<HomeFeedState> {
       showArchived: prefs.showArchived,
     );
   }
+
+  // ── BookmarkFeedHost ──────────────────────────────────────────────────
+
+  @override
+  List<Bookmark> get items => state.bookmarks;
+
+  @override
+  set items(List<Bookmark> value) => state = state.copyWith(bookmarks: value);
+
+  @override
+  bool get canLoadMore => state.hasMore;
+
+  @override
+  bool keeps(Bookmark bookmark) => belongsInFeed(
+        bookmark,
+        state.scope,
+        includeArchived: state.showArchived,
+      );
+
+  @override
+  void removedFromList(String listId, String bookmarkId) {
+    if (state.scope case ListScope(:final id) when id == listId) {
+      remove(bookmarkId);
+    }
+  }
+
+  // ── Scope & filter ────────────────────────────────────────────────────
 
   Future<void> selectScope(BookmarkScope scope) async {
     if (scope == state.scope) return;
@@ -90,6 +121,7 @@ class HomeFeedViewModel extends Notifier<HomeFeedState> {
     }
   }
 
+  @override
   Future<void> loadMore() async {
     final cursor = state.nextCursor;
     if (cursor == null || state.loadingMore) return;

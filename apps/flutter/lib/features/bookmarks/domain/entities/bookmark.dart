@@ -26,6 +26,32 @@ class Bookmark {
   final List<BookmarkTag> tags;
   final BookmarkContent content;
 
+  Bookmark copyWith({
+    bool? archived,
+    bool? favourited,
+    List<BookmarkTag>? tags,
+  }) {
+    return Bookmark(
+      id: id,
+      createdAt: createdAt,
+      content: content,
+      title: title,
+      archived: archived ?? this.archived,
+      favourited: favourited ?? this.favourited,
+      note: note,
+      summary: summary,
+      tags: tags ?? this.tags,
+    );
+  }
+
+  /// The web address to open or share, if any.
+  String? get url => switch (content) {
+        LinkContent(:final url) => url,
+        TextContent(:final sourceUrl) => sourceUrl,
+        AssetContent(:final sourceUrl) => sourceUrl,
+        UnknownContent() => null,
+      };
+
   String get displayTitle {
     final own = title?.trim();
     if (own != null && own.isNotEmpty) return own;

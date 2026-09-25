@@ -10,8 +10,6 @@ import 'bookmark_image.dart';
 class BookmarkCard extends StatelessWidget {
   const BookmarkCard({super.key, required this.bookmark, this.onTap});
 
-  static const _maxTags = 4;
-
   final Bookmark bookmark;
   final VoidCallback? onTap;
 
@@ -76,7 +74,7 @@ class BookmarkCard extends StatelessWidget {
                   ],
                   if (bookmark.tags.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    _Tags(tags: bookmark.tags, max: _maxTags),
+                    _Tags(tags: bookmark.tags),
                   ],
                   const SizedBox(height: 10),
                   _MetaRow(bookmark: bookmark),
@@ -191,23 +189,18 @@ class _MetaIcon extends StatelessWidget {
       Icon(icon, size: 16, color: AppColors.muted);
 }
 
+/// Every tag, wrapping onto as many lines as needed; the card grows.
 class _Tags extends StatelessWidget {
-  const _Tags({required this.tags, required this.max});
+  const _Tags({required this.tags});
 
   final List<BookmarkTag> tags;
-  final int max;
 
   @override
   Widget build(BuildContext context) {
-    final shown = tags.take(max).toList();
-    final hidden = tags.length - shown.length;
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children: [
-        for (final tag in shown) _Chip('#${tag.name}'),
-        if (hidden > 0) _Chip('+$hidden'),
-      ],
+      children: [for (final tag in tags) _Chip('#${tag.name}')],
     );
   }
 }
