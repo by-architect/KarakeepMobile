@@ -16,9 +16,10 @@ class ServerStatusIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 64,
-      height: 44,
+    // Sized by content, not a fixed width: device fonts and text scaling
+    // make "Check" wider than on the design screen.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
       child: Center(
         child: switch (status) {
           ServerStatus.checking => const SizedBox.square(
@@ -41,7 +42,7 @@ class ServerStatusIndicator extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              child: const Text('Check'),
+              child: const Text('Check', maxLines: 1, softWrap: false),
             ),
         },
       ),

@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karakeep_client/app.dart';
@@ -76,6 +77,17 @@ void main() {
 
     expect(field('ak2_…'), findsOneWidget);
     expect(find.textContaining('uses single sign-on'), findsOneWidget);
+  });
+
+  testWidgets('Check stays on one line with large text', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await pumpApp(tester);
+
+    final check = find.text('Check');
+    final lineHeight =
+        tester.renderObject<RenderParagraph>(check).preferredLineHeight;
+    expect(tester.getSize(check).height, lessThan(lineHeight * 1.5));
   });
 
   testWidgets('Karakeep Cloud shortcut fills the address', (tester) async {
