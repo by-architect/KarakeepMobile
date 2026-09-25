@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/misc.dart';
-import 'package:karakeep_client/features/settings/domain/settings_repository.dart';
-import 'package:karakeep_client/features/settings/settings_providers.dart';
+import 'package:linkstow/features/settings/domain/settings_repository.dart';
+import 'package:linkstow/features/settings/settings_providers.dart';
 
 class InMemorySettings implements SettingsRepository {
   @override

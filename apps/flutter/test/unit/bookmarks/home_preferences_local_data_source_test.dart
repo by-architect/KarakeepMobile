@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/features/bookmarks/data/datasources/local/home_preferences_local_data_source.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_list.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/data/datasources/local/home_preferences_local_data_source.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_list.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';

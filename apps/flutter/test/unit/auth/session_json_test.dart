@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/features/auth/data/mappers/session_mapper.dart';
-import 'package:karakeep_client/features/auth/domain/entities/server_connection.dart';
-import 'package:karakeep_client/features/auth/domain/entities/session.dart';
+import 'package:linkstow/features/auth/data/mappers/session_mapper.dart';
+import 'package:linkstow/features/auth/domain/entities/server_connection.dart';
+import 'package:linkstow/features/auth/domain/entities/session.dart';
 
 void main() {
   test('round-trips a session', () {

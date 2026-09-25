@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:karakeep_client/features/auth/data/datasources/local/session_local_data_source.dart';
-import 'package:karakeep_client/features/auth/domain/entities/session.dart';
+import 'package:linkstow/features/auth/data/datasources/local/session_local_data_source.dart';
+import 'package:linkstow/features/auth/domain/entities/session.dart';
 
 typedef FakeResponse = ({int status, Object? body});
 typedef FakeRoutes = Map<String, FakeResponse Function(RequestOptions)>;

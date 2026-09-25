@@ -1,10 +1,10 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/app.dart';
-import 'package:karakeep_client/features/auth/auth_providers.dart';
-import 'package:karakeep_client/features/auth/domain/entities/server_info.dart';
-import 'package:karakeep_client/features/bookmarks/bookmarks_providers.dart';
+import 'package:linkstow/app.dart';
+import 'package:linkstow/features/auth/auth_providers.dart';
+import 'package:linkstow/features/auth/domain/entities/server_info.dart';
+import 'package:linkstow/features/bookmarks/bookmarks_providers.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../unit/auth/fake_auth_repository.dart';

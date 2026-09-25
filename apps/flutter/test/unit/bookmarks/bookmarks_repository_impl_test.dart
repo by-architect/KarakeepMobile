@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/core/error/failure.dart';
-import 'package:karakeep_client/core/network/api_client.dart';
-import 'package:karakeep_client/core/network/dio_factory.dart';
-import 'package:karakeep_client/features/bookmarks/data/datasources/remote/bookmarks_remote_data_source.dart';
-import 'package:karakeep_client/features/bookmarks/data/repositories/bookmarks_repository_impl.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/core/error/failure.dart';
+import 'package:linkstow/core/network/api_client.dart';
+import 'package:linkstow/core/network/dio_factory.dart';
+import 'package:linkstow/features/bookmarks/data/datasources/remote/bookmarks_remote_data_source.dart';
+import 'package:linkstow/features/bookmarks/data/repositories/bookmarks_repository_impl.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
 
 import '../auth/fake_server.dart';
 

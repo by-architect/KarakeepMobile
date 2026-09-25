@@ -172,6 +172,16 @@ class SettingsScreen extends ConsumerWidget {
             label: 'About',
             children: [
               _ValueRow('${AppConfig.appName} version', appVersion ?? '…'),
+              _ValueRow('License', AppConfig.license),
+              ListTile(
+                title: const Text('Source code'),
+                trailing: const Icon(Icons.open_in_new_rounded,
+                    size: 18, color: AppColors.muted),
+                onTap: () => launchUrl(
+                  Uri.parse(AppConfig.sourceCodeUrl),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
               ListTile(
                 title: const Text('Karakeep project'),
                 trailing: const Icon(Icons.open_in_new_rounded,
@@ -189,6 +199,9 @@ class SettingsScreen extends ConsumerWidget {
                   context: context,
                   applicationName: AppConfig.appName,
                   applicationVersion: appVersion,
+                  applicationLegalese:
+                      '${AppConfig.license}. An unofficial client for Karakeep, '
+                      'not affiliated with Karakeep or Localhost Labs Ltd.',
                 ),
               ),
             ],

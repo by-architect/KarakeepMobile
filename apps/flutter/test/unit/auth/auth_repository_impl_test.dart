@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/core/error/failure.dart';
-import 'package:karakeep_client/core/network/dio_factory.dart';
-import 'package:karakeep_client/features/auth/data/datasources/remote/auth_remote_data_source.dart';
-import 'package:karakeep_client/features/auth/data/repositories/auth_repository_impl.dart';
-import 'package:karakeep_client/features/auth/domain/entities/server_connection.dart';
+import 'package:linkstow/core/error/failure.dart';
+import 'package:linkstow/core/network/dio_factory.dart';
+import 'package:linkstow/features/auth/data/datasources/remote/auth_remote_data_source.dart';
+import 'package:linkstow/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:linkstow/features/auth/domain/entities/server_connection.dart';
 
 import 'fake_server.dart';
 
@@ -87,7 +87,7 @@ void main() {
           .firstWhere((r) => r.path.endsWith('apiKeys.exchange'));
       final input = (exchange.data as Map)['json'] as Map;
       expect(input['email'], 'ada@example.com');
-      expect(input['keyName'], startsWith('Keeper mobile ('));
+      expect(input['keyName'], startsWith('Linkstow mobile ('));
     });
 
     test('maps wrong credentials to a clear message', () async {

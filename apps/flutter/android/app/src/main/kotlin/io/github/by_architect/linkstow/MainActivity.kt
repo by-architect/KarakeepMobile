@@ -1,4 +1,4 @@
-package org.karakeepclient.karakeep_client
+package io.github.by_architect.linkstow
 
 import io.flutter.embedding.android.FlutterActivity
 

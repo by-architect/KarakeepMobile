@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Draws Keeper's launcher icon: two bookmark ribbons on black.
+"""Draws Linkstow's launcher icon: two bookmark ribbons on black.
 
-Karakeep's own icon is their brand mark, so Keeper uses its own design in the
+Karakeep's own icon is their brand mark, so Linkstow uses its own design in the
 same spirit (white on black, bookmark shapes). Re-run after changing it, then
 `dart run flutter_launcher_icons`.
 

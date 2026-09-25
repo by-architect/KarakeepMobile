@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/core/error/failure.dart';
-import 'package:karakeep_client/features/bookmarks/bookmarks_providers.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_scope.dart';
-import 'package:karakeep_client/features/bookmarks/presentation/state/home_feed_state.dart';
-import 'package:karakeep_client/features/bookmarks/presentation/viewmodels/home_feed_view_model.dart';
+import 'package:linkstow/core/error/failure.dart';
+import 'package:linkstow/features/bookmarks/bookmarks_providers.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/presentation/state/home_feed_state.dart';
+import 'package:linkstow/features/bookmarks/presentation/viewmodels/home_feed_view_model.dart';
 
 import 'fakes.dart';
 

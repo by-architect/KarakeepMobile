@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:karakeep_client/core/error/failure.dart';
-import 'package:karakeep_client/features/auth/domain/entities/server_connection.dart';
-import 'package:karakeep_client/features/auth/domain/entities/server_info.dart';
-import 'package:karakeep_client/features/auth/domain/entities/session.dart';
-import 'package:karakeep_client/features/auth/domain/repositories/auth_repository.dart';
+import 'package:linkstow/core/error/failure.dart';
+import 'package:linkstow/features/auth/domain/entities/server_connection.dart';
+import 'package:linkstow/features/auth/domain/entities/server_info.dart';
+import 'package:linkstow/features/auth/domain/entities/session.dart';
+import 'package:linkstow/features/auth/domain/repositories/auth_repository.dart';
 
 /// Scriptable [AuthRepository] for view model and widget tests.
 class FakeAuthRepository implements AuthRepository {

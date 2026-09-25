@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/core/error/failure.dart';
-import 'package:karakeep_client/features/auth/auth_providers.dart';
-import 'package:karakeep_client/features/auth/domain/entities/server_info.dart';
-import 'package:karakeep_client/features/auth/presentation/state/login_state.dart';
-import 'package:karakeep_client/features/auth/presentation/viewmodels/login_view_model.dart';
-import 'package:karakeep_client/features/auth/presentation/viewmodels/session_controller.dart';
+import 'package:linkstow/core/error/failure.dart';
+import 'package:linkstow/features/auth/auth_providers.dart';
+import 'package:linkstow/features/auth/domain/entities/server_info.dart';
+import 'package:linkstow/features/auth/presentation/state/login_state.dart';
+import 'package:linkstow/features/auth/presentation/viewmodels/login_view_model.dart';
+import 'package:linkstow/features/auth/presentation/viewmodels/session_controller.dart';
 
 import 'fake_auth_repository.dart';
 

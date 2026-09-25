@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_scope.dart';
-import 'package:karakeep_client/features/bookmarks/domain/search_query.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/search_query.dart';
 
 void main() {
   test('plain text passes through, trimmed', () {

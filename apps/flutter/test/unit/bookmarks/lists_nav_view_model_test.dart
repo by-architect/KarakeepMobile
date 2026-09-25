@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/features/bookmarks/bookmarks_providers.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_list.dart';
-import 'package:karakeep_client/features/bookmarks/presentation/state/lists_nav_state.dart';
-import 'package:karakeep_client/features/bookmarks/presentation/viewmodels/lists_nav_view_model.dart';
+import 'package:linkstow/features/bookmarks/bookmarks_providers.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_list.dart';
+import 'package:linkstow/features/bookmarks/presentation/state/lists_nav_state.dart';
+import 'package:linkstow/features/bookmarks/presentation/viewmodels/lists_nav_view_model.dart';
 
 import 'fakes.dart';
 

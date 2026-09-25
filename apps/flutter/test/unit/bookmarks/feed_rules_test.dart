@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_scope.dart';
-import 'package:karakeep_client/features/bookmarks/domain/feed_rules.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/feed_rules.dart';
 
 import 'fakes.dart';
 

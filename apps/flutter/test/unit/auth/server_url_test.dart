@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:karakeep_client/features/auth/domain/server_url.dart';
+import 'package:linkstow/features/auth/domain/server_url.dart';
 
 String? ok(String input) => switch (normalizeServerUrl(input)) {
       ValidServerUrl(:final url) => url,

@@ -1,9 +1,9 @@
-import 'package:karakeep_client/core/error/failure.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_list.dart';
-import 'package:karakeep_client/features/bookmarks/domain/entities/bookmark_scope.dart';
-import 'package:karakeep_client/features/bookmarks/domain/repositories/bookmarks_repository.dart';
-import 'package:karakeep_client/features/bookmarks/domain/repositories/home_preferences_repository.dart';
+import 'package:linkstow/core/error/failure.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_list.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/repositories/bookmarks_repository.dart';
+import 'package:linkstow/features/bookmarks/domain/repositories/home_preferences_repository.dart';
 
 Bookmark link(
   String id, {
