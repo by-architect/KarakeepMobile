@@ -19,7 +19,7 @@ fun signingValue(property: String, env: String): String? =
 val releaseKeystore = signingValue("storeFile", "ANDROID_KEYSTORE_PATH")
 
 android {
-    namespace = "io.github.by_architect.linkstow"
+    namespace = "com.byarchitect.linkstow"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -30,7 +30,7 @@ android {
 
     defaultConfig {
         // Permanent once published (docs/adr/0002).
-        applicationId = "io.github.by_architect.linkstow"
+        applicationId = "com.byarchitect.linkstow"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

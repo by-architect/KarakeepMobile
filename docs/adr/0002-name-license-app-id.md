@@ -1,6 +1,6 @@
 # 0002 — Name "Linkstow", GPL-3.0, permanent app IDs
 
-**Status:** accepted · 2026-09-25
+**Status:** accepted · 2026-09-25 — IDs superseded by [0003](0003-app-id-com-byarchitect.md)
 
 ## Context
 
