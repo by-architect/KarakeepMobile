@@ -1,3 +1,4 @@
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import java.util.Properties
 
 plugins {
@@ -35,10 +36,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
+        // The version code from pubspec.yaml. Split APKs get their own scheme
+        // below.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -58,6 +57,21 @@ android {
         release {
             signingConfig =
                 if (releaseKeystore != null) signingConfigs.getByName("release") else null
+        }
+    }
+}
+
+// With --split-per-abi each APK gets versionCode * 10 + ABI, replacing
+// Flutter's 1000 * ABI + versionCode. F-Droid asks for this scheme and its
+// metadata computes the same numbers (VercodeOperation 10 * %c + 1..3); the
+// order arm32 < arm64 < x86_64 lets a device take the best APK it can run.
+val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
+android.applicationVariants.configureEach {
+    val variant = this
+    variant.outputs.forEach { output ->
+        val abiVersionCode = abiCodes[output.filters.find { it.filterType == "ABI" }?.identifier]
+        if (abiVersionCode != null) {
+            (output as ApkVariantOutputImpl).versionCodeOverride = variant.versionCode * 10 + abiVersionCode
         }
     }
 }
