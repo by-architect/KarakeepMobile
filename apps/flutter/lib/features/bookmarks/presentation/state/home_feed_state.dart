@@ -1,5 +1,6 @@
 import '../../domain/entities/bookmark.dart';
 import '../../domain/entities/bookmark_scope.dart';
+import '../../domain/entities/sort_order.dart';
 
 enum FeedStatus { loading, ready, error }
 
@@ -7,6 +8,7 @@ class HomeFeedState {
   const HomeFeedState({
     required this.scope,
     required this.showArchived,
+    this.sortOrder = SortOrder.newestFirst,
     this.status = FeedStatus.loading,
     this.bookmarks = const [],
     this.nextCursor,
@@ -17,6 +19,7 @@ class HomeFeedState {
 
   final BookmarkScope scope;
   final bool showArchived;
+  final SortOrder sortOrder;
   final FeedStatus status;
   final List<Bookmark> bookmarks;
   final String? nextCursor;
@@ -33,9 +36,15 @@ class HomeFeedState {
   /// "Show archived" means nothing when looking at the archive itself.
   bool get archivedFilterApplies => scope is! ArchivedScope;
 
+  /// Sort or filter differs from the defaults (newest first, archived hidden).
+  bool get isCustomized =>
+      sortOrder != SortOrder.newestFirst ||
+      (archivedFilterApplies && showArchived);
+
   HomeFeedState copyWith({
     BookmarkScope? scope,
     bool? showArchived,
+    SortOrder? sortOrder,
     FeedStatus? status,
     List<Bookmark>? bookmarks,
     String? Function()? nextCursor,
@@ -46,6 +55,7 @@ class HomeFeedState {
     return HomeFeedState(
       scope: scope ?? this.scope,
       showArchived: showArchived ?? this.showArchived,
+      sortOrder: sortOrder ?? this.sortOrder,
       status: status ?? this.status,
       bookmarks: bookmarks ?? this.bookmarks,
       nextCursor: nextCursor != null ? nextCursor() : this.nextCursor,

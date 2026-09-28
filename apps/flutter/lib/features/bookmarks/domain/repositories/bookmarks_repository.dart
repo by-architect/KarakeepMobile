@@ -1,6 +1,7 @@
 import '../entities/bookmark.dart';
 import '../entities/bookmark_list.dart';
 import '../entities/bookmark_scope.dart';
+import '../entities/sort_order.dart';
 
 class BookmarkPage {
   const BookmarkPage({required this.bookmarks, this.nextCursor});
@@ -26,11 +27,12 @@ class LibraryTotals {
 
 /// Every method throws a `Failure` (core/error) on error.
 abstract interface class BookmarksRepository {
-  /// One page of [scope], newest first. With [includeArchived] false,
-  /// archived items are left out (ignored for [ArchivedScope]).
+  /// One page of [scope] in [order]. With [includeArchived] false, archived
+  /// items are left out (ignored for [ArchivedScope]).
   Future<BookmarkPage> getBookmarks(
     BookmarkScope scope, {
     required bool includeArchived,
+    SortOrder order = SortOrder.newestFirst,
     String? cursor,
   });
 
@@ -52,6 +54,12 @@ abstract interface class BookmarksRepository {
   });
 
   Future<TagSummary> createTag(String name);
+
+  /// Its bookmarks stay; lists inside it move up to the top level.
+  Future<void> deleteList(String id);
+
+  /// Takes the tag off every bookmark that has it; the bookmarks stay.
+  Future<void> deleteTag(String id);
 
   /// Total items per list id (archived included).
   Future<Map<String, int>> getListTotals();

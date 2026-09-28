@@ -1,0 +1,6 @@
+- Sort bookmarks newest or oldest first
+- Delete a list or tag: press and hold it in the side menu
+- Make a new list right from "Add to lists"
+- Opened pages scroll up and down properly
+- Archiving one bookmark after another now goes all the way through, and archived ones no longer come back when you refresh
+- Links that try to open another app (like Facebook) no longer end on an error page

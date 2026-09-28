@@ -9,6 +9,7 @@ import '../../domain/entities/bookmark_scope.dart';
 import '../../domain/feed_rules.dart';
 import '../../domain/repositories/bookmarks_repository.dart';
 import '../../domain/search_query.dart';
+import '../bookmark_actions.dart';
 import '../feed_host.dart';
 import '../state/search_state.dart';
 import 'home_feed_view_model.dart';
@@ -82,7 +83,7 @@ class SearchViewModel extends Notifier<SearchState> with BookmarkFeedHost {
       if (!_current(generation)) return;
       state = state.copyWith(
         status: SearchStatus.ready,
-        results: page.bookmarks,
+        results: _visible(page),
         nextCursor: () => page.nextCursor,
         loadingMore: false,
       );
@@ -103,7 +104,7 @@ class SearchViewModel extends Notifier<SearchState> with BookmarkFeedHost {
       final page = await _repo.search(_query(), cursor: cursor);
       if (!_current(generation)) return;
       state = state.copyWith(
-        results: [...state.results, ...page.bookmarks],
+        results: [...state.results, ..._visible(page)],
         nextCursor: () => page.nextCursor,
         loadingMore: false,
       );
@@ -129,6 +130,15 @@ class SearchViewModel extends Notifier<SearchState> with BookmarkFeedHost {
   void insertToken(String token) {
     final text = state.text.trimRight();
     textChanged(text.isEmpty ? '$token ' : '$text $token ');
+  }
+
+  /// Leaves out items whose delete is still waiting out its Undo.
+  List<Bookmark> _visible(BookmarkPage page) {
+    final actions = ref.read(bookmarkActionsProvider);
+    return [
+      for (final b in page.bookmarks)
+        if (!actions.isBeingDeleted(b.id)) b,
+    ];
   }
 
   String _query() => buildSearchQuery(

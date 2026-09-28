@@ -13,10 +13,12 @@ class BookmarksRemoteDataSource {
 
   Dio get _dio => _client.dio;
 
-  /// REST `GET /api/v1/bookmarks`.
+  /// REST `GET /api/v1/bookmarks`. [sortOrder] is `asc` or `desc` (the
+  /// server's default); servers too old to know it ignore it.
   Future<({List<Object?> bookmarks, String? nextCursor})> getBookmarks({
     bool? archived,
     bool? favourited,
+    String? sortOrder,
     String? cursor,
     required int limit,
   }) async {
@@ -25,6 +27,7 @@ class BookmarksRemoteDataSource {
       queryParameters: {
         'archived': ?archived?.toString(),
         'favourited': ?favourited?.toString(),
+        'sortOrder': ?sortOrder,
         'cursor': ?cursor,
         'limit': limit,
         'includeContent': 'false',
@@ -47,6 +50,7 @@ class BookmarksRemoteDataSource {
     String? listId,
     String? tagId,
     bool? archived,
+    String? sortOrder,
     String? cursor,
     required int limit,
   }) async {
@@ -57,6 +61,7 @@ class BookmarksRemoteDataSource {
         'listId': ?listId,
         'tagId': ?tagId,
         'archived': ?archived,
+        'sortOrder': ?sortOrder,
         'limit': limit,
         'useCursorV2': true,
         'includeContent': false,
@@ -179,6 +184,13 @@ class BookmarksRemoteDataSource {
         .post<Map<String, Object?>>('/api/v1/tags', data: {'name': name});
     return response.data!;
   }
+
+  /// REST `DELETE /api/v1/lists/{id}`. Only the owner may; bookmarks stay
+  /// and child lists lose their parent.
+  Future<void> deleteList(String id) => _dio.delete<void>('/api/v1/lists/$id');
+
+  /// REST `DELETE /api/v1/tags/{id}` — detaches it from every bookmark.
+  Future<void> deleteTag(String id) => _dio.delete<void>('/api/v1/tags/$id');
 
   /// REST `GET /api/v1/lists` — own and shared lists, not paginated.
   Future<List<Object?>> getLists() async {

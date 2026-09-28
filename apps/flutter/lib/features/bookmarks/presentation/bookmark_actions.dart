@@ -53,17 +53,27 @@ class BookmarkActions {
     }
   }
 
+  /// Staged but not yet deleted on the server (Undo still offered).
+  final _deleting = <String>{};
+
+  /// Feeds leave these out of fresh pages: the server still has them, and a
+  /// refresh during the Undo window would otherwise bring them back.
+  bool isBeingDeleted(String id) => _deleting.contains(id);
+
   /// Deleting can't be undone on the server, so it happens in two steps:
   /// [stageDelete] hides the item now (returns where it was), and
   /// [commitDelete] tells the server once the chance to undo has passed.
   int stageDelete(BookmarkFeedHost host, Bookmark b) {
+    _deleting.add(b.id);
     final index = host.indexOf(b.id);
     host.remove(b.id);
     return index;
   }
 
-  void undoDelete(BookmarkFeedHost host, Bookmark b, int index) =>
-      host.restore(b, index);
+  void undoDelete(BookmarkFeedHost host, Bookmark b, int index) {
+    _deleting.remove(b.id);
+    host.restore(b, index);
+  }
 
   Future<void> commitDelete(BookmarkFeedHost host, Bookmark b, int index) async {
     try {
@@ -72,6 +82,8 @@ class BookmarkActions {
     } on Failure {
       host.restore(b, index); // no-op if that screen has closed since
       rethrow;
+    } finally {
+      _deleting.remove(b.id);
     }
   }
 

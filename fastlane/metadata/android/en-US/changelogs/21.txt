@@ -1,1 +1,1 @@
-Builds one APK per CPU type with the version codes F-Droid expects. No changes to the app itself.
+Smaller download: you now get an app file made just for your phone's processor. Nothing else changed.

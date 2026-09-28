@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:linkstow/app.dart';
@@ -19,7 +21,9 @@ void main() {
   late InMemoryHomePreferences prefs;
   late InMemorySettings settings;
 
-  Future<void> pumpSignedIn(WidgetTester tester) async {
+  /// [settle] off when the feed has more pages: the spinner under the list
+  /// keeps turning, so it never settles.
+  Future<void> pumpSignedIn(WidgetTester tester, {bool settle = true}) async {
     tester.view.physicalSize = const Size(1179, 2556);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -44,7 +48,12 @@ void main() {
         child: const App(),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+    }
   }
 
   setUp(() {
@@ -98,6 +107,57 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('page a browser'), findsOneWidget);
       expect(bookmarks.items['all']!.first.archived, isFalse);
+    });
+
+    testWidgets('archiving past the loaded ones goes on to the next page, '
+        'and closes only at the real end', (tester) async {
+      bookmarks = FakeBookmarksRepository(
+        pageSize: 2,
+        items: {
+          'all': [link('a'), link('b'), link('c')],
+        },
+      );
+      await pumpSignedIn(tester, settle: false);
+      await tester.tap(find.text('Article a'));
+      await tester.pumpAndSettle(); // home, spinner and all, is covered now
+
+      for (final next in ['b', 'c']) {
+        await tester.tap(find.byTooltip('Archive'));
+        await tester.pumpAndSettle();
+        expect(find.text('page $next browser'), findsOneWidget);
+      }
+      await tester.tap(find.byTooltip('Archive'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PageView), findsNothing); // back home
+      expect(find.text('No bookmarks yet'), findsOneWidget);
+      expect(bookmarks.items['all']!.every((b) => b.archived), isTrue);
+    });
+
+    testWidgets('waits on a loading page when the next ones are slow',
+        (tester) async {
+      bookmarks = FakeBookmarksRepository(
+        pageSize: 1,
+        items: {
+          'all': [link('a'), link('b')],
+        },
+      )..holdNextPages = Completer<void>();
+      await pumpSignedIn(tester, settle: false);
+      await tester.tap(find.text('Article a'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1)); // route transition
+
+      await tester.tap(find.byTooltip('Archive'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Loading more…'), findsOneWidget);
+      expect(find.byTooltip('Archive'), findsNothing); // no toolbar
+
+      bookmarks.holdNextPages!.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('page b browser'), findsOneWidget);
+      expect(find.text('Loading more…'), findsNothing);
     });
 
     testWidgets('with archived shown, archive keeps the page', (tester) async {
@@ -227,6 +287,28 @@ void main() {
         expect(find.text('#tag$i'), findsOneWidget);
       }
     });
+  });
+
+  testWidgets('the lists sheet makes a new list with the bookmark in it',
+      (tester) async {
+    await pumpSignedIn(tester);
+    await tester.tap(find.text('Article a'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Lists')); // the viewer's toolbar
+    await tester.pumpAndSettle();
+    expect(find.text('Add to lists'), findsOneWidget);
+
+    await tester.tap(find.text('New list'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Later');
+    await tester.tap(find.text('Create list'));
+    await tester.pumpAndSettle();
+
+    final list = bookmarks.lists.single;
+    expect(list.name, 'Later');
+    expect(bookmarks.listMembership['a'], {list.id});
+    final row = find.widgetWithText(CheckboxListTile, '📋  Later');
+    expect(tester.widget<CheckboxListTile>(row).value, isTrue);
   });
 
   testWidgets('drawer creates a list and a tag', (tester) async {

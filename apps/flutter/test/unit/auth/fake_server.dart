@@ -15,6 +15,10 @@ class FakeServerAdapter implements HttpClientAdapter {
   final FakeRoutes routes;
   final requests = <RequestOptions>[];
 
+  /// Holds a request until the returned future completes (null: answer
+  /// straight away) — for a server that's slow to answer.
+  Future<void>? Function(RequestOptions)? hold;
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -22,6 +26,7 @@ class FakeServerAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
+    await hold?.call(options);
     final handler = routes['${options.method} ${options.uri.path}'];
     final response = handler?.call(options) ?? (status: 404, body: 'Not Found');
     final body = response.body;

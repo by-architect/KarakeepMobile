@@ -16,7 +16,8 @@ import '../widgets/bookmark_sheets.dart';
 /// Reads bookmarks one at a time, in the order of the feed they were opened
 /// from. Swipe left/right for next/previous; the toolbar acts on the one
 /// shown. Items the feed drops (e.g. archived while archived are hidden)
-/// disappear here too and the next one slides in.
+/// disappear here too and the next one slides in — from the server's next
+/// page when the loaded ones run out. Closes when nothing is left.
 class BookmarkViewerScreen extends ConsumerStatefulWidget {
   const BookmarkViewerScreen({
     super.key,
@@ -37,6 +38,7 @@ class _BookmarkViewerScreenState extends ConsumerState<BookmarkViewerScreen> {
   late int _index;
 
   /// The bookmark on screen; tracked by id so removals don't lose our place.
+  /// Null on the page after the last one, while more are loading.
   String? _currentId;
 
   BookmarkFeedHost get _host => feedHost(ref, widget.source);
@@ -58,24 +60,35 @@ class _BookmarkViewerScreenState extends ConsumerState<BookmarkViewerScreen> {
   void _onPageChanged(int index, List<Bookmark> items) {
     setState(() {
       _index = index;
-      _currentId = items[index].id;
+      _currentId = index < items.length ? items[index].id : null;
     });
-    if (index >= items.length - 3 && _host.canLoadMore) _host.loadMore();
   }
 
   /// After the feed changed, keep showing the same bookmark — or, if it was
-  /// removed, whatever now sits at its position (the next one). Runs during
-  /// build; only the page jump waits for the frame.
-  void _sync(List<Bookmark> items) {
-    final byId = items.indexWhere((b) => b.id == _currentId);
-    final target = byId >= 0 ? byId : _index.clamp(0, items.length - 1);
-    if (target == _index && byId >= 0) return;
+  /// removed, whatever now sits at its position: the next one, or the
+  /// loading page when the next ones aren't here yet. Runs during build;
+  /// only the page jump waits for the frame.
+  void _sync(List<Bookmark> items, int pageCount) {
+    final id = _currentId;
+    final byId = id == null ? -1 : items.indexWhere((b) => b.id == id);
+    if (byId >= 0 && byId == _index) return;
+    final target = byId >= 0 ? byId : _index.clamp(0, pageCount - 1);
     _index = target;
-    _currentId = items[target].id;
+    _currentId = target < items.length ? items[target].id : null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pages.hasClients && _pages.page?.round() != target) {
         _pages.jumpToPage(target);
       }
+    });
+  }
+
+  /// Fetch the server's next page while a few loaded ones are still ahead —
+  /// whether we got here by swiping or because archiving moved us along.
+  void _loadMoreIfNear(FeedView feed) {
+    if (!feed.hasMore || feed.loadingMore || feed.error != null) return;
+    if (_index < feed.items.length - 3) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _host.loadMore();
     });
   }
 
@@ -101,70 +114,131 @@ class _BookmarkViewerScreenState extends ConsumerState<BookmarkViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = watchFeedItems(ref, widget.source);
+    final feed = watchFeed(ref, widget.source);
+    final items = feed.items;
     final mode = ref.watch(settingsViewModelProvider.select((s) => s.viewerMode));
     final pageBuilder = ref.watch(bookmarkPageBuilderProvider);
 
-    if (items.isEmpty) {
+    // One page per bookmark, plus one that waits for the server's next page.
+    final pageCount = items.length + (feed.hasMore ? 1 : 0);
+    if (pageCount == 0) {
       // Everything was archived or deleted away.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Navigator.of(context).maybePop();
       });
       return const Scaffold();
     }
-    _sync(items);
-    final current = items[_index];
+    _sync(items, pageCount);
+    _loadMoreIfNear(feed);
+    final current = _index < items.length ? items[_index] : null;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         titleSpacing: 0,
-        title: _TitleMenu(
-          bookmark: current,
-          mode: mode,
-          onMode: ref.read(settingsViewModelProvider.notifier).setViewerMode,
-        ),
+        title: current == null
+            ? const Text(
+                'Loading more…',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              )
+            : _TitleMenu(
+                bookmark: current,
+                mode: mode,
+                onMode:
+                    ref.read(settingsViewModelProvider.notifier).setViewerMode,
+              ),
       ),
       body: PageView.builder(
         controller: _pages,
-        itemCount: items.length,
+        itemCount: pageCount,
         onPageChanged: (i) => _onPageChanged(i, items),
-        itemBuilder: (context, i) => KeyedSubtree(
-          key: ValueKey('${items[i].id}-${mode.name}'),
-          child: pageBuilder(items[i], mode),
-        ),
+        itemBuilder: (context, i) => i < items.length
+            ? KeyedSubtree(
+                key: ValueKey('${items[i].id}-${mode.name}'),
+                child: pageBuilder(items[i], mode),
+              )
+            : _MorePage(error: feed.error, onRetry: _host.loadMore),
       ),
-      bottomNavigationBar: _Toolbar(
-        bookmark: current,
-        position: '${_index + 1} / ${items.length}${_host.canLoadMore ? '+' : ''}',
-        onLists: () => showListsSheet(context, host: _host, bookmark: current),
-        onFavourite: () => favouriteWithUndo(context, ref, _host, current),
-        onShare: () => _share(current),
-        onBrowser: current.url == null ? null : () => _openExternally(current),
-        onArchive: () => archiveWithUndo(
-          context,
-          ref,
-          _host,
-          current,
-          onUndo: () => _showAgain(current),
+      bottomNavigationBar: current == null ? null : _toolbar(current, feed),
+    );
+  }
+
+  Widget _toolbar(Bookmark current, FeedView feed) {
+    return _Toolbar(
+      bookmark: current,
+      position: '${_index + 1} / ${feed.items.length}${feed.hasMore ? '+' : ''}',
+      onLists: () => showListsSheet(context, host: _host, bookmark: current),
+      onFavourite: () => favouriteWithUndo(context, ref, _host, current),
+      onShare: () => _share(current),
+      onBrowser: current.url == null ? null : () => _openExternally(current),
+      onArchive: () => archiveWithUndo(
+        context,
+        ref,
+        _host,
+        current,
+        onUndo: () => _showAgain(current),
+      ),
+      onDelete: () => deleteWithUndo(
+        context,
+        ref,
+        _host,
+        current,
+        onUndo: () => _showAgain(current),
+      ),
+      onTags: () => showTagsSheet(context, host: _host, bookmark: current),
+      onCopy: current.url == null
+          ? null
+          : () {
+              Clipboard.setData(ClipboardData(text: current.url!));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Link copied')),
+              );
+            },
+    );
+  }
+}
+
+/// The page after the last loaded bookmark: a spinner while the server's
+/// next page loads, or why it didn't.
+class _MorePage extends StatelessWidget {
+  const _MorePage({required this.error, required this.onRetry});
+
+  final String? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = this.error;
+    if (error == null) {
+      return const Center(
+        child: SizedBox.square(
+          dimension: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        onDelete: () => deleteWithUndo(
-          context,
-          ref,
-          _host,
-          current,
-          onUndo: () => _showAgain(current),
+      );
+    }
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 40,
+              color: AppColors.muted,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.mutedForeground),
+            ),
+            const SizedBox(height: 8),
+            TextButton(onPressed: onRetry, child: const Text('Try again')),
+          ],
         ),
-        onTags: () => showTagsSheet(context, host: _host, bookmark: current),
-        onCopy: current.url == null
-            ? null
-            : () {
-                Clipboard.setData(ClipboardData(text: current.url!));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Link copied')),
-                );
-              },
       ),
     );
   }

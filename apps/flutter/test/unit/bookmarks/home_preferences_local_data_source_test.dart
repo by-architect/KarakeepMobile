@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:linkstow/features/bookmarks/data/datasources/local/home_preferences_local_data_source.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_list.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/sort_order.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
@@ -20,8 +21,10 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  test('defaults: archived hidden, no scope, no counts', () async {
+  test('defaults: newest first, archived hidden, no scope, no counts',
+      () async {
     final prefs = await launch();
+    expect(prefs.sortOrder, SortOrder.newestFirst);
     expect(prefs.showArchived, isFalse);
     expect(prefs.lastScope('acc'), isNull);
     expect(prefs.cachedCounts('acc'), isEmpty);
@@ -30,6 +33,7 @@ void main() {
   test('survives a relaunch', () async {
     final first = await launch();
     await first.setShowArchived(true);
+    await first.setSortOrder(SortOrder.oldestFirst);
     await first.setLastScope(
       'acc',
       const ListScope(id: 'L1', name: 'Reading', icon: '📚'),
@@ -41,6 +45,7 @@ void main() {
 
     final second = await launch();
     expect(second.showArchived, isTrue);
+    expect(second.sortOrder, SortOrder.oldestFirst);
     final scope = second.lastScope('acc')! as ListScope;
     expect(scope.id, 'L1');
     expect(scope.name, 'Reading');

@@ -8,8 +8,9 @@ import '../../../../core/widgets/primary_button.dart';
 import '../../domain/entities/bookmark_list.dart';
 import '../viewmodels/lists_nav_view_model.dart';
 
-Future<void> showCreateListSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+/// Returns the new list, or null if the sheet was closed without one.
+Future<BookmarkList?> showCreateListSheet(BuildContext context) {
+  return showModalBottomSheet<BookmarkList>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -75,7 +76,7 @@ class _CreateListSheetState extends ConsumerState<_CreateListSheet> {
                 query: query,
                 parentId: _parentId,
               );
-      navigator.pop();
+      navigator.pop(list);
       messenger.showSnackBar(
         SnackBar(content: Text('Created ${list.icon} ${list.name}')),
       );

@@ -5,6 +5,7 @@ import '../../../../core/network/failure_mapper.dart';
 import '../../domain/entities/bookmark.dart';
 import '../../domain/entities/bookmark_list.dart';
 import '../../domain/entities/bookmark_scope.dart';
+import '../../domain/entities/sort_order.dart';
 import '../../domain/repositories/bookmarks_repository.dart';
 import '../datasources/remote/bookmarks_remote_data_source.dart';
 import '../mappers/bookmark_json.dart';
@@ -23,47 +24,61 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
 
   final BookmarksRemoteDataSource _remote;
 
+  /// Changes sent but not yet answered. Feeds and counts wait for them: a
+  /// refresh racing an archive still on its way would otherwise bring the
+  /// item back, since the server hadn't saved it yet.
+  final _pendingWrites = <Future<void>>{};
+
   @override
   Future<BookmarkPage> getBookmarks(
     BookmarkScope scope, {
     required bool includeArchived,
+    SortOrder order = SortOrder.newestFirst,
     String? cursor,
   }) =>
-      _guard(() => _page(scope, includeArchived, cursor, _pageSize));
+      _read(() => _page(scope, includeArchived, order, cursor, _pageSize));
 
   Future<BookmarkPage> _page(
     BookmarkScope scope,
     bool includeArchived,
+    SortOrder order,
     String? cursor,
     int limit,
   ) async {
     final archived = includeArchived ? null : false;
+    // Only sent when it differs from the server's default (newest first).
+    final sortOrder = order == SortOrder.oldestFirst ? 'asc' : null;
     final result = switch (scope) {
       AllScope() => await _remote.getBookmarks(
           archived: archived,
+          sortOrder: sortOrder,
           cursor: cursor,
           limit: limit,
         ),
       FavouritesScope() => await _remote.getBookmarks(
           favourited: true,
           archived: archived,
+          sortOrder: sortOrder,
           cursor: cursor,
           limit: limit,
         ),
       ArchivedScope() => await _remote.getBookmarks(
           archived: true,
+          sortOrder: sortOrder,
           cursor: cursor,
           limit: limit,
         ),
       ListScope(:final id) => await _remote.getFilteredBookmarks(
           listId: id,
           archived: archived,
+          sortOrder: sortOrder,
           cursor: cursor,
           limit: limit,
         ),
       TagScope(:final id) => await _remote.getFilteredBookmarks(
           tagId: id,
           archived: archived,
+          sortOrder: sortOrder,
           cursor: cursor,
           limit: limit,
         ),
@@ -84,14 +99,14 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
   }
 
   @override
-  Future<BookmarkPage> search(String query, {String? cursor}) => _guard(
+  Future<BookmarkPage> search(String query, {String? cursor}) => _read(
         () async => _toPage(
           await _remote.search(query: query, cursor: cursor, limit: _pageSize),
         ),
       );
 
   @override
-  Future<List<TagSummary>> getTags() => _guard(() async {
+  Future<List<TagSummary>> getTags() => _read(() async {
         final tags = await _remote.getTags();
         return [
           for (final t in tags.cast<Map<String, Object?>>())
@@ -111,7 +126,7 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
     String? query,
     String? parentId,
   }) =>
-      _guard(() async {
+      _write(() async {
         final json = await _remote.createList({
           'name': name.trim(),
           'icon': icon,
@@ -123,7 +138,7 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
       });
 
   @override
-  Future<TagSummary> createTag(String name) => _guard(() async {
+  Future<TagSummary> createTag(String name) => _write(() async {
         final json = await _remote.createTag(name.trim());
         return TagSummary(
           id: json['id']! as String,
@@ -133,7 +148,13 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
       });
 
   @override
-  Future<List<BookmarkList>> getLists() => _guard(() async {
+  Future<void> deleteList(String id) => _write(() => _remote.deleteList(id));
+
+  @override
+  Future<void> deleteTag(String id) => _write(() => _remote.deleteTag(id));
+
+  @override
+  Future<List<BookmarkList>> getLists() => _read(() async {
         final lists = await _remote.getLists();
         return [
           for (final l in lists.cast<Map<String, Object?>>())
@@ -142,7 +163,7 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
       });
 
   @override
-  Future<Map<String, int>> getListTotals() => _guard(() async {
+  Future<Map<String, int>> getListTotals() => _read(() async {
         final stats = await _remote.getListStats();
         return {
           for (final MapEntry(:key, :value) in stats.entries)
@@ -151,7 +172,7 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
       });
 
   @override
-  Future<LibraryTotals> getLibraryTotals() => _guard(() async {
+  Future<LibraryTotals> getLibraryTotals() => _read(() async {
         final stats = await _remote.getUserStats();
         int read(String key) => (stats[key] as num?)?.toInt() ?? 0;
         return LibraryTotals(
@@ -163,7 +184,7 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
 
   @override
   Future<Bookmark> getBookmark(String id) =>
-      _guard(() async => BookmarkJson.bookmark(await _remote.getBookmark(id)));
+      _read(() async => BookmarkJson.bookmark(await _remote.getBookmark(id)));
 
   @override
   Future<String?> getReaderHtml(String id) => _guard(() async {
@@ -175,18 +196,18 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
 
   @override
   Future<void> setFavourited(String id, bool value) =>
-      _guard(() => _remote.patchBookmark(id, {'favourited': value}));
+      _write(() => _remote.patchBookmark(id, {'favourited': value}));
 
   @override
   Future<void> setArchived(String id, bool value) =>
-      _guard(() => _remote.patchBookmark(id, {'archived': value}));
+      _write(() => _remote.patchBookmark(id, {'archived': value}));
 
   @override
   Future<void> deleteBookmark(String id) =>
-      _guard(() => _remote.deleteBookmark(id));
+      _write(() => _remote.deleteBookmark(id));
 
   @override
-  Future<Set<String>> listIdsOf(String bookmarkId) => _guard(() async {
+  Future<Set<String>> listIdsOf(String bookmarkId) => _read(() async {
         final lists = await _remote.getBookmarkLists(bookmarkId);
         return {
           for (final l in lists.cast<Map<String, Object?>>()) l['id']! as String,
@@ -195,21 +216,21 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
 
   @override
   Future<void> addToList(String listId, String bookmarkId) =>
-      _guard(() => _remote.addToList(listId, bookmarkId));
+      _write(() => _remote.addToList(listId, bookmarkId));
 
   @override
   Future<void> removeFromList(String listId, String bookmarkId) =>
-      _guard(() => _remote.removeFromList(listId, bookmarkId));
+      _write(() => _remote.removeFromList(listId, bookmarkId));
 
   @override
-  Future<void> attachTag(String bookmarkId, String tagName) => _guard(
+  Future<void> attachTag(String bookmarkId, String tagName) => _write(
         () => _remote.attachTags(bookmarkId, [
           {'tagName': tagName.trim(), 'attachedBy': 'human'},
         ]),
       );
 
   @override
-  Future<void> detachTag(String bookmarkId, String tagId) => _guard(
+  Future<void> detachTag(String bookmarkId, String tagId) => _write(
         () => _remote.detachTags(bookmarkId, [
           {'tagId': tagId},
         ]),
@@ -220,16 +241,39 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
       _guard(() => _remote.signedAssetUrl(assetId));
 
   @override
-  Future<int> countUnarchived(BookmarkScope scope) => _guard(() async {
+  Future<int> countUnarchived(BookmarkScope scope) => _read(() async {
         var count = 0;
         String? cursor;
         for (var page = 0; page < _maxCountPages; page++) {
-          final result = await _page(scope, false, cursor, _countPageSize);
+          final result = await _page(
+            scope,
+            false,
+            SortOrder.newestFirst,
+            cursor,
+            _countPageSize,
+          );
           count += result.bookmarks.length;
           cursor = result.nextCursor;
           if (cursor == null) break;
         }
         return count;
+      });
+
+  /// A change: tracked until the server answers, so reads can wait for it.
+  Future<T> _write<T>(Future<T> Function() body) {
+    final result = _guard(body);
+    final settled = result.then<void>((_) {}, onError: (Object _) {});
+    _pendingWrites.add(settled);
+    settled.whenComplete(() => _pendingWrites.remove(settled));
+    return result;
+  }
+
+  /// A read that should see every change this app already sent.
+  Future<T> _read<T>(Future<T> Function() body) => _guard(() async {
+        while (_pendingWrites.isNotEmpty) {
+          await Future.wait(_pendingWrites.toList());
+        }
+        return body();
       });
 
   Future<T> _guard<T>(Future<T> Function() body) async {

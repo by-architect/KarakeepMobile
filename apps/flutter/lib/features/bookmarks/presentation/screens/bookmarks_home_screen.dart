@@ -6,6 +6,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/inline_banner.dart';
 import '../../domain/entities/bookmark_scope.dart';
+import '../../domain/entities/sort_order.dart';
 import '../feed_host.dart';
 import '../open_bookmark.dart';
 import '../state/home_feed_state.dart';
@@ -41,6 +42,16 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
     _vm.selectScope(scope);
   }
 
+  /// A list or tag was deleted from the drawer.
+  void _scopeDeleted(BookmarkScope scope) {
+    if (!mounted) return;
+    if (scope is TagScope) _vm.forgetTag(scope.id);
+    if (ref.read(homeFeedViewModelProvider).scope == scope) {
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+      _vm.selectScope(const AllScope());
+    }
+  }
+
   Future<void> _refresh() => Future.wait([
         _vm.refresh(),
         ref.read(listsNavViewModelProvider.notifier).refresh(),
@@ -64,6 +75,7 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
       drawer: ListsDrawer(
         selected: state.scope,
         onSelect: _select,
+        onScopeDeleted: _scopeDeleted,
         onOpenSettings: _openSettings,
       ),
       appBar: AppBar(
@@ -84,10 +96,13 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
             icon: const Icon(Icons.search_rounded),
             onPressed: () => context.push(Routes.search),
           ),
-          _FilterMenu(
-            showArchived: state.showArchived,
-            enabled: state.archivedFilterApplies,
-            onChanged: _vm.setShowArchived,
+          _FeedMenu(
+            state: state,
+            onSortOrder: (order) {
+              if (_scrollController.hasClients) _scrollController.jumpTo(0);
+              _vm.setSortOrder(order);
+            },
+            onShowArchived: _vm.setShowArchived,
           ),
           const SizedBox(width: 4),
         ],
@@ -223,35 +238,46 @@ class _ScopeTitle extends StatelessWidget {
   }
 }
 
-class _FilterMenu extends StatelessWidget {
-  const _FilterMenu({
-    required this.showArchived,
-    required this.enabled,
-    required this.onChanged,
+/// Order (by date saved) and the archived filter. A dot on the icon when
+/// either isn't the default.
+class _FeedMenu extends StatelessWidget {
+  const _FeedMenu({
+    required this.state,
+    required this.onSortOrder,
+    required this.onShowArchived,
   });
 
-  final bool showArchived;
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
+  final HomeFeedState state;
+  final ValueChanged<SortOrder> onSortOrder;
+  final ValueChanged<bool> onShowArchived;
 
   @override
   Widget build(BuildContext context) {
-    final active = enabled && showArchived;
-    return PopupMenuButton<bool>(
-      tooltip: 'Filter',
+    return PopupMenuButton<VoidCallback>(
+      tooltip: 'Sort and filter',
       color: AppColors.popover,
       icon: Badge(
-        isLabelVisible: active,
+        isLabelVisible: state.isCustomized,
         smallSize: 7,
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.filter_list_rounded),
       ),
-      onSelected: onChanged,
+      onSelected: (action) => action(),
       itemBuilder: (_) => [
+        for (final (order, label) in const [
+          (SortOrder.newestFirst, 'Newest first'),
+          (SortOrder.oldestFirst, 'Oldest first'),
+        ])
+          CheckedPopupMenuItem(
+            value: () => onSortOrder(order),
+            checked: state.sortOrder == order,
+            child: Text(label),
+          ),
+        const PopupMenuDivider(),
         CheckedPopupMenuItem(
-          value: !showArchived,
-          checked: showArchived,
-          enabled: enabled,
+          value: () => onShowArchived(!state.showArchived),
+          checked: state.showArchived,
+          enabled: state.archivedFilterApplies,
           child: const Text('Show archived'),
         ),
       ],

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -17,6 +19,41 @@ typedef BookmarkPageBuilder = Widget Function(Bookmark bookmark, ViewerMode mode
 final bookmarkPageBuilderProvider = Provider<BookmarkPageBuilder>(
   (ref) => (bookmark, mode) => BookmarkPageView(bookmark: bookmark, mode: mode),
 );
+
+/// Which touches a web page gets while they happen: vertical drags (scroll)
+/// and long presses (select text). Horizontal drags stay with the viewer and
+/// swipe to the next or previous bookmark. With no recognizers a platform
+/// view only gets gestures nothing else claimed — and the viewer's swipe
+/// claims any drag that moves a little sideways, so pages wouldn't scroll.
+final _webPageGestures = <Factory<OneSequenceGestureRecognizer>>{
+  Factory<VerticalDragGestureRecognizer>(VerticalDragGestureRecognizer.new),
+  Factory<LongPressGestureRecognizer>(LongPressGestureRecognizer.new),
+};
+
+/// Whether a web view can show [uri] itself.
+bool opensInWebView(Uri uri) => const {
+      'http',
+      'https',
+      'about',
+      'data',
+      'blob',
+      'javascript',
+    }.contains(uri.scheme.toLowerCase());
+
+/// What to hand to the phone for a link only another app can open.
+/// `intent://host/path#Intent;scheme=fb;…;end` (Chrome's app-link format)
+/// becomes `fb://host/path`; `fb://…`, `mailto:…` and the like stay as they
+/// are. Null when the link doesn't say which app it's for.
+Uri? appLinkTarget(Uri uri) {
+  if (uri.scheme.toLowerCase() != 'intent') return uri;
+  String? scheme;
+  for (final part in uri.fragment.split(';')) {
+    if (part.startsWith('scheme=')) scheme = part.substring('scheme='.length);
+  }
+  if (scheme == null || scheme.isEmpty) return null;
+  final rest = uri.toString().substring('intent:'.length).split('#').first;
+  return Uri.tryParse('$scheme:$rest');
+}
 
 /// Reader-view HTML for a bookmark, loaded once per page.
 final readerHtmlProvider =
@@ -75,8 +112,19 @@ class _LivePage extends StatefulWidget {
 }
 
 class _LivePageState extends State<_LivePage> {
+  /// Email, call and text links open their app straight away, as in a
+  /// browser; other apps are offered first.
+  static const _directSchemes = {'mailto', 'tel', 'sms'};
+
   late final WebViewController _controller;
   var _progress = 0;
+
+  /// Why the page didn't load, shown instead of the web view's own error.
+  String? _error;
+
+  /// An app this page wants to open, offered in a bar at the bottom.
+  Uri? _appLink;
+  var _appLinkDismissed = false;
 
   @override
   void initState() {
@@ -89,26 +137,164 @@ class _LivePageState extends State<_LivePage> {
           onProgress: (p) {
             if (mounted) setState(() => _progress = p);
           },
+          onPageStarted: (_) {
+            if (mounted && _error != null) setState(() => _error = null);
+          },
+          onNavigationRequest: _onNavigation,
+          onWebResourceError: _onError,
         ),
       )
       ..loadRequest(Uri.parse(widget.url));
   }
 
+  /// Sites like Facebook send phones on to their app — `fb://…`,
+  /// `intent://…` — as the page loads or from an "Open app" button. A web
+  /// view can't follow those and would show an error page instead, so stay
+  /// on the page and offer the app.
+  NavigationDecision _onNavigation(NavigationRequest request) {
+    final uri = Uri.tryParse(request.url);
+    if (uri == null || opensInWebView(uri)) return NavigationDecision.navigate;
+    final target = appLinkTarget(uri);
+    if (request.isMainFrame && target != null && mounted) {
+      if (_directSchemes.contains(target.scheme.toLowerCase())) {
+        _launch(target);
+      } else if (!_appLinkDismissed) {
+        setState(() => _appLink = target);
+      }
+    }
+    return NavigationDecision.prevent;
+  }
+
+  void _onError(WebResourceError error) {
+    // Images, ads and frames fail all the time; only the page itself counts.
+    if (error.isForMainFrame != true || !mounted) return;
+    // A navigation cut short (e.g. the app redirect prevented above).
+    if (error.description.contains('ERR_ABORTED')) return;
+    setState(() {
+      _error = switch (error.errorType) {
+        WebResourceErrorType.hostLookup =>
+          'Couldn’t find ${Uri.tryParse(widget.url)?.host ?? 'the site'}. '
+              'Check your connection.',
+        WebResourceErrorType.timeout => 'The site took too long to answer.',
+        WebResourceErrorType.connect => 'Couldn’t connect to the site.',
+        WebResourceErrorType.failedSslHandshake =>
+          'The site’s secure connection failed.',
+        _ => 'Couldn’t load this page.',
+      };
+    });
+  }
+
+  Future<void> _launch(Uri uri) async {
+    final messenger = ScaffoldMessenger.of(context);
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on Object {
+      opened = false;
+    }
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No app on this phone can open that.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final error = _error;
+    final appLink = _appLink;
     return Stack(
       children: [
-        // No gesture recognizers: horizontal drags stay with the page view
-        // (next/previous bookmark), vertical ones scroll the site.
-        WebViewWidget(controller: _controller),
-        if (_progress < 100)
+        WebViewWidget(
+          controller: _controller,
+          gestureRecognizers: _webPageGestures,
+        ),
+        if (_progress < 100 && error == null)
           LinearProgressIndicator(
             value: _progress / 100,
             minHeight: 2,
             color: AppColors.primary,
             backgroundColor: Colors.transparent,
           ),
+        if (error != null)
+          Positioned.fill(
+            child: ColoredBox(
+              color: AppColors.background,
+              child: _Notice(
+                icon: Icons.cloud_off_rounded,
+                text: error,
+                actions: [
+                  TextButton(
+                    onPressed: _controller.reload,
+                    child: const Text('Try again'),
+                  ),
+                  TextButton(
+                    onPressed: () => _launch(Uri.parse(widget.url)),
+                    child: const Text('Open in browser'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (appLink != null && error == null)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: _AppLinkBar(
+              onOpen: () {
+                setState(() => _appLink = null);
+                _launch(appLink);
+              },
+              onDismiss: () => setState(() {
+                _appLink = null;
+                _appLinkDismissed = true;
+              }),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// "This page wants to open an app" with Open and close.
+class _AppLinkBar extends StatelessWidget {
+  const _AppLinkBar({required this.onOpen, required this.onDismiss});
+
+  final VoidCallback onOpen;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.popover,
+      elevation: 4,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.open_in_new_rounded,
+              size: 18,
+              color: AppColors.mutedForeground,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'This page wants to open an app.',
+                style: TextStyle(fontSize: 14),
+              ),
+            ),
+            TextButton(onPressed: onOpen, child: const Text('Open')),
+            IconButton(
+              tooltip: 'Dismiss',
+              icon: const Icon(Icons.close_rounded, size: 18),
+              onPressed: onDismiss,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -135,14 +321,20 @@ class _ReaderPageState extends ConsumerState<_ReaderPage> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) {
+            final uri = Uri.tryParse(request.url);
+            if (uri == null) return NavigationDecision.navigate;
+            // Only the article itself loads here: web links open in the
+            // browser, app links (mailto:, fb://…) in their app.
             if (request.url.startsWith('http')) {
-              launchUrl(
-                Uri.parse(request.url),
-                mode: LaunchMode.externalApplication,
-              );
+              launchUrl(uri, mode: LaunchMode.externalApplication);
               return NavigationDecision.prevent;
             }
-            return NavigationDecision.navigate;
+            if (opensInWebView(uri)) return NavigationDecision.navigate;
+            final target = appLinkTarget(uri);
+            if (target != null) {
+              launchUrl(target, mode: LaunchMode.externalApplication);
+            }
+            return NavigationDecision.prevent;
           },
         ),
       )
@@ -174,7 +366,10 @@ class _ReaderPageState extends ConsumerState<_ReaderPage> {
                 'crawling it — switch to Browser from the title menu.',
           );
         }
-        return WebViewWidget(controller: _controller ??= _build(content));
+        return WebViewWidget(
+          controller: _controller ??= _build(content),
+          gestureRecognizers: _webPageGestures,
+        );
       },
     );
   }
@@ -276,10 +471,15 @@ class _PdfPage extends ConsumerWidget {
 }
 
 class _Notice extends StatelessWidget {
-  const _Notice({required this.icon, required this.text});
+  const _Notice({
+    required this.icon,
+    required this.text,
+    this.actions = const [],
+  });
 
   final IconData icon;
   final String text;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -296,6 +496,10 @@ class _Notice extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.mutedForeground),
             ),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(alignment: WrapAlignment.center, children: actions),
+            ],
           ],
         ),
       ),

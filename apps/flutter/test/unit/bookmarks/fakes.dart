@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:linkstow/core/error/failure.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_list.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/sort_order.dart';
 import 'package:linkstow/features/bookmarks/domain/repositories/bookmarks_repository.dart';
 import 'package:linkstow/features/bookmarks/domain/repositories/home_preferences_repository.dart';
 
@@ -44,7 +47,15 @@ class FakeBookmarksRepository implements BookmarksRepository {
   /// Scope keys whose load fails with [NotFoundFailure] (deleted list).
   final missing = <String>{};
 
-  final calls = <({String scope, bool includeArchived, String? cursor})>[];
+  /// While set, pages after the first wait for it — a slow server.
+  Completer<void>? holdNextPages;
+
+  final calls = <({
+    String scope,
+    bool includeArchived,
+    SortOrder order,
+    String? cursor,
+  })>[];
   final countCalls = <String>[];
 
   List<Bookmark> _visible(BookmarkScope scope, bool includeArchived) {
@@ -57,21 +68,36 @@ class FakeBookmarksRepository implements BookmarksRepository {
   Future<BookmarkPage> getBookmarks(
     BookmarkScope scope, {
     required bool includeArchived,
+    SortOrder order = SortOrder.newestFirst,
     String? cursor,
   }) async {
     calls.add((
       scope: scope.key,
       includeArchived: includeArchived,
+      order: order,
       cursor: cursor,
     ));
+    if (cursor != null) await holdNextPages?.future;
     if (failure != null) throw failure!;
     if (missing.contains(scope.key)) throw const NotFoundFailure();
-    final visible = _visible(scope, includeArchived);
-    final start = cursor == null ? 0 : int.parse(cursor);
-    final end = (start + pageSize).clamp(0, visible.length);
+    // [items] are stored newest first, like the server's default.
+    final all = items[scope.key] ?? const <Bookmark>[];
+    final ordered = order == SortOrder.oldestFirst ? all.reversed.toList() : all;
+    // Like Karakeep's cursor, the next page starts at a given item — so
+    // archiving items already shown doesn't shift later pages.
+    var from = 0;
+    if (cursor != null) {
+      from = ordered.indexWhere((b) => b.id == cursor);
+      if (from < 0) from = ordered.length;
+    }
+    final shown = scope is ArchivedScope || includeArchived;
+    final rest = [
+      for (final b in ordered.skip(from))
+        if (shown || !b.archived) b,
+    ];
     return BookmarkPage(
-      bookmarks: visible.sublist(start, end),
-      nextCursor: end < visible.length ? '$end' : null,
+      bookmarks: rest.take(pageSize).toList(),
+      nextCursor: rest.length > pageSize ? rest[pageSize].id : null,
     );
   }
 
@@ -109,6 +135,43 @@ class FakeBookmarksRepository implements BookmarksRepository {
     final tag = TagSummary(id: 'tag-$name', name: name, count: 0);
     tags = [...tags, tag];
     return tag;
+  }
+
+  final deletedLists = <String>[];
+  final deletedTags = <String>[];
+
+  @override
+  Future<void> deleteList(String id) async {
+    if (failure != null) throw failure!;
+    deletedLists.add(id);
+    lists = [
+      for (final l in lists)
+        if (l.id != id)
+          l.parentId == id
+              ? BookmarkList(
+                  id: l.id,
+                  name: l.name,
+                  icon: l.icon,
+                  kind: l.kind,
+                )
+              : l,
+    ];
+  }
+
+  @override
+  Future<void> deleteTag(String id) async {
+    if (failure != null) throw failure!;
+    deletedTags.add(id);
+    tags = [
+      for (final t in tags)
+        if (t.id != id) t,
+    ];
+    for (final entry in items.entries) {
+      items[entry.key] = [
+        for (final b in entry.value)
+          b.copyWith(tags: [...b.tags.where((t) => t.id != id)]),
+      ];
+    }
   }
 
   @override
@@ -230,15 +293,23 @@ class FakeBookmarksRepository implements BookmarksRepository {
 }
 
 class InMemoryHomePreferences implements HomePreferencesRepository {
-  InMemoryHomePreferences({this.showArchived = false});
+  InMemoryHomePreferences({
+    this.showArchived = false,
+    this.sortOrder = SortOrder.newestFirst,
+  });
 
   @override
   bool showArchived;
+  @override
+  SortOrder sortOrder;
   final scopes = <String, BookmarkScope>{};
   final counts = <String, Map<String, ItemCount>>{};
 
   @override
   Future<void> setShowArchived(bool value) async => showArchived = value;
+
+  @override
+  Future<void> setSortOrder(SortOrder value) async => sortOrder = value;
 
   @override
   BookmarkScope? lastScope(String accountKey) => scopes[accountKey];

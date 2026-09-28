@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,7 @@ import 'package:linkstow/features/bookmarks/data/datasources/remote/bookmarks_re
 import 'package:linkstow/features/bookmarks/data/repositories/bookmarks_repository_impl.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/sort_order.dart';
 
 import '../auth/fake_server.dart';
 
@@ -58,6 +60,19 @@ void main() {
     );
   }
 
+  test('deleting a list and a tag', () async {
+    final r = repo({
+      'DELETE /api/v1/lists/L1': (_) => (status: 204, body: ''),
+      'DELETE /api/v1/tags/T1': (_) => (status: 204, body: ''),
+    });
+    await r.deleteList('L1');
+    await r.deleteTag('T1');
+    expect(
+      adapter.requests.map((o) => '${o.method} ${o.uri.path}'),
+      ['DELETE /api/v1/lists/L1', 'DELETE /api/v1/tags/T1'],
+    );
+  });
+
   group('getBookmarks', () {
     test('all, archived hidden → REST archived=false', () async {
       final r = repo({
@@ -83,6 +98,68 @@ void main() {
       expect((b.content as LinkContent).domain, 'example.com');
       // Karakeep's priority: screenshot asset beats an external image URL.
       expect(b.previewImage, isA<ServerImage>());
+    });
+
+    test('oldest first → sortOrder=asc; newest first sends nothing',
+        () async {
+      final r = repo({
+        'GET /api/v1/bookmarks': (_) =>
+            (status: 200, body: {'bookmarks': [], 'nextCursor': null}),
+        'GET /api/trpc/bookmarks.getBookmarks': (_) =>
+            (status: 200, body: trpc({'bookmarks': [], 'nextCursor': null})),
+      });
+      await r.getBookmarks(
+        const AllScope(),
+        includeArchived: false,
+        order: SortOrder.oldestFirst,
+      );
+      await r.getBookmarks(
+        const TagScope(id: 'T1', name: 'dart'),
+        includeArchived: false,
+        order: SortOrder.oldestFirst,
+      );
+      await r.getBookmarks(const AllScope(), includeArchived: false);
+
+      expect(adapter.requests[0].uri.queryParameters['sortOrder'], 'asc');
+      final input = jsonDecode(
+        adapter.requests[1].uri.queryParameters['input']!,
+      ) as Map;
+      expect(input['json'], containsPair('sortOrder', 'asc'));
+      expect(
+        adapter.requests[2].uri.queryParameters.containsKey('sortOrder'),
+        isFalse,
+      );
+    });
+
+    test('a page waits for changes still on their way', () async {
+      final slowPatch = Completer<void>();
+      final r = repo({
+        'PATCH /api/v1/bookmarks/a': (_) => (status: 200, body: {}),
+        'GET /api/v1/bookmarks': (_) =>
+            (status: 200, body: {'bookmarks': [], 'nextCursor': null}),
+      });
+      adapter.hold = (o) => o.method == 'PATCH' ? slowPatch.future : null;
+
+      final archive = r.setArchived('a', true);
+      final page = r.getBookmarks(const AllScope(), includeArchived: false);
+      await pumpEventQueue();
+      // Asking now would get the item back: the server hasn't archived it.
+      expect(adapter.requests.map((o) => o.method), ['PATCH']);
+
+      slowPatch.complete();
+      await archive;
+      await page;
+      expect(adapter.requests.map((o) => o.method), ['PATCH', 'GET']);
+    });
+
+    test('a failed change doesn\'t hold reads back', () async {
+      final r = repo({
+        'GET /api/v1/bookmarks': (_) =>
+            (status: 200, body: {'bookmarks': [], 'nextCursor': null}),
+      }); // no PATCH route: 404
+      await expectLater(r.setArchived('a', true), throwsA(isA<Failure>()));
+      await r.getBookmarks(const AllScope(), includeArchived: false);
+      expect(adapter.requests.map((o) => o.method), ['PATCH', 'GET']);
     });
 
     test('favourites with archived shown → no archived param', () async {
