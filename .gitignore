@@ -1,1 +1,5 @@
 commit-changes.md
+key.properties
+*.jks
+*.keystore
+*.store-submit.orig
