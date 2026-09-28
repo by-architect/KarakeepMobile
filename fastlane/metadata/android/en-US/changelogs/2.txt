@@ -1,0 +1,1 @@
+Builds one APK per CPU type with the version codes F-Droid expects. No changes to the app itself.
