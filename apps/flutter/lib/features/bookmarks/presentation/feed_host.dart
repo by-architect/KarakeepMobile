@@ -61,10 +61,35 @@ BookmarkFeedHost feedHost(WidgetRef ref, FeedSource source) => switch (source) {
       FeedSource.search => ref.read(searchViewModelProvider.notifier),
     };
 
-List<Bookmark> watchFeedItems(WidgetRef ref, FeedSource source) =>
-    switch (source) {
-      FeedSource.home =>
-        ref.watch(homeFeedViewModelProvider.select((s) => s.bookmarks)),
-      FeedSource.search =>
-        ref.watch(searchViewModelProvider.select((s) => s.results)),
+/// What the viewer pages through: the items so far, and whether more are on
+/// the server ([error] is why the last attempt to get them failed).
+typedef FeedView = ({
+  List<Bookmark> items,
+  bool hasMore,
+  bool loadingMore,
+  String? error,
+});
+
+FeedView watchFeed(WidgetRef ref, FeedSource source) => switch (source) {
+      FeedSource.home => ref.watch(
+          homeFeedViewModelProvider.select(
+            (s) => (
+              items: s.bookmarks,
+              hasMore: s.hasMore,
+              loadingMore: s.loadingMore,
+              error: s.loadMoreError,
+            ),
+          ),
+        ),
+      // Search stops paging when a page fails, so it has no error to show.
+      FeedSource.search => ref.watch(
+          searchViewModelProvider.select(
+            (s) => (
+              items: s.results,
+              hasMore: s.hasMore,
+              loadingMore: s.loadingMore,
+              error: null,
+            ),
+          ),
+        ),
     };

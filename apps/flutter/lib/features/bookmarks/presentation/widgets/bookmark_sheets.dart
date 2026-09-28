@@ -9,6 +9,7 @@ import '../bookmark_actions.dart';
 import '../feed_host.dart';
 import '../state/lists_nav_state.dart';
 import '../viewmodels/lists_nav_view_model.dart';
+import 'create_list_tag.dart';
 
 /// Asks before deleting. Deleting can't be undone on the server.
 Future<bool> confirmDelete(BuildContext context, Bookmark bookmark) async {
@@ -56,8 +57,8 @@ Future<void> _showSheet(BuildContext context, Widget child) {
   );
 }
 
-/// Tick the lists a bookmark belongs to. Smart lists fill themselves, so
-/// they're shown but can't be ticked.
+/// Tick the lists a bookmark belongs to, or make a new one for it. Smart
+/// lists fill themselves, so they're shown but can't be ticked.
 Future<void> showListsSheet(
   BuildContext context, {
   required BookmarkFeedHost host,
@@ -118,6 +119,13 @@ class _ListsSheetState extends ConsumerState<_ListsSheet> {
     }
   }
 
+  /// New list from here: the bookmark goes straight into it.
+  Future<void> _createList() async {
+    final list = await showCreateListSheet(context);
+    if (list == null || !mounted || _member == null) return;
+    if (list.kind == ListKind.manual) await _toggle(list.id, true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final lists = ref.watch(listsNavViewModelProvider.select((s) => s.lists));
@@ -134,20 +142,31 @@ class _ListsSheetState extends ConsumerState<_ListsSheet> {
                 ? Center(child: Text(_error!))
                 : member == null
                     ? const Center(child: CircularProgressIndicator())
-                    : lists.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No lists yet. Create them on the web.',
-                              style: TextStyle(color: AppColors.muted),
+                    : ListView(
+                        controller: controller,
+                        children: [
+                          ListTile(
+                            leading: const Icon(
+                              Icons.add_rounded,
+                              color: AppColors.primary,
                             ),
-                          )
-                        : ListView(
-                            controller: controller,
-                            children: [
-                              for (final entry in lists)
-                                _listRow(entry, member),
-                            ],
+                            title: const Text(
+                              'New list',
+                              style: TextStyle(color: AppColors.primary),
+                            ),
+                            onTap: _createList,
                           ),
+                          if (lists.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+                              child: Text(
+                                'No lists yet.',
+                                style: TextStyle(color: AppColors.muted),
+                              ),
+                            ),
+                          for (final entry in lists) _listRow(entry, member),
+                        ],
+                      ),
           ),
         ],
       ),

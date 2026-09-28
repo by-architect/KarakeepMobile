@@ -44,7 +44,8 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
     }
   }
 
-  /// Creates a list and reloads the drawer. Throws `Failure` for the form.
+  /// Creates a list, shows it at once and reloads the drawer. Throws
+  /// `Failure` for the form.
   Future<BookmarkList> createList({
     required String name,
     required String icon,
@@ -59,6 +60,11 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
       query: query,
       parentId: parentId,
     );
+    if (ref.mounted) {
+      state = state.copyWith(
+        lists: buildTree([for (final e in state.lists) e.list, list]),
+      );
+    }
     unawaited(refresh());
     return list;
   }
@@ -68,6 +74,35 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
     final tag = await _repo.createTag(name);
     unawaited(loadTags());
     return tag;
+  }
+
+  /// Deletes a list on the server. Its bookmarks stay; lists inside it move
+  /// up to the top level (the tree does that by itself once the parent is
+  /// gone). Throws `Failure`.
+  Future<void> deleteList(BookmarkList list) async {
+    await _repo.deleteList(list.id);
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      lists: buildTree([
+        for (final e in state.lists)
+          if (e.list.id != list.id) e.list,
+      ]),
+    );
+    unawaited(refresh());
+  }
+
+  /// Deletes a tag everywhere; the bookmarks that had it stay. Throws
+  /// `Failure`.
+  Future<void> deleteTag(TagSummary tag) async {
+    await _repo.deleteTag(tag.id);
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      tags: [
+        for (final t in state.tags)
+          if (t.id != tag.id) t,
+      ],
+    );
+    unawaited(loadTags());
   }
 
   /// Something changed on the server (archive, delete, list membership…):

@@ -1,11 +1,16 @@
 import '../entities/bookmark_list.dart';
 import '../entities/bookmark_scope.dart';
+import '../entities/sort_order.dart';
 
 /// What the home screen remembers on this device between launches.
 /// Reads are synchronous so the first frame already reflects them.
 abstract interface class HomePreferencesRepository {
   bool get showArchived;
   Future<void> setShowArchived(bool value);
+
+  /// Feed order; the same for every list and tag.
+  SortOrder get sortOrder;
+  Future<void> setSortOrder(SortOrder value);
 
   /// Last selected scope for the account, or null.
   BookmarkScope? lastScope(String accountKey);

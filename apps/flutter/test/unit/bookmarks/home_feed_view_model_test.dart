@@ -2,7 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:linkstow/core/error/failure.dart';
 import 'package:linkstow/features/bookmarks/bookmarks_providers.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/sort_order.dart';
+import 'package:linkstow/features/bookmarks/presentation/bookmark_actions.dart';
+import 'package:linkstow/features/bookmarks/presentation/feed_host.dart';
 import 'package:linkstow/features/bookmarks/presentation/state/home_feed_state.dart';
 import 'package:linkstow/features/bookmarks/presentation/viewmodels/home_feed_view_model.dart';
 
@@ -74,6 +78,50 @@ void main() {
     expect(prefs.showArchived, isTrue);
     expect(state().bookmarks.map((b) => b.id), ['a', 'b']);
     expect(state().hasMore, isTrue);
+  });
+
+  test('oldest first reloads in that order and is remembered', () async {
+    await start();
+    await vm().setSortOrder(SortOrder.oldestFirst);
+    expect(prefs.sortOrder, SortOrder.oldestFirst);
+    expect(repo.calls.last.order, SortOrder.oldestFirst);
+    expect(state().bookmarks.map((b) => b.id), ['c', 'a']);
+
+    // Paging and changing scope keep the order.
+    await vm().selectScope(reading);
+    expect(repo.calls.last.order, SortOrder.oldestFirst);
+    expect(state().sortOrder, SortOrder.oldestFirst);
+  });
+
+  test('starts in the remembered order', () async {
+    prefs.sortOrder = SortOrder.oldestFirst;
+    await start();
+    expect(state().sortOrder, SortOrder.oldestFirst);
+    expect(repo.calls.single.order, SortOrder.oldestFirst);
+  });
+
+  test('a refresh during a delete’s Undo leaves that item out', () async {
+    await start();
+    final actions = container.read(bookmarkActionsProvider);
+    final BookmarkFeedHost host = vm();
+    final a = state().bookmarks.first;
+    final index = actions.stageDelete(host, a);
+
+    await vm().refresh(); // the server still has it
+    expect(state().bookmarks.map((b) => b.id), ['c']);
+
+    actions.undoDelete(host, a, index);
+    await vm().refresh();
+    expect(state().bookmarks.map((b) => b.id), ['a', 'c']);
+  });
+
+  test('a deleted tag comes off the loaded cards', () async {
+    repo.items['all'] = [
+      link('a').copyWith(tags: const [BookmarkTag(id: 'T1', name: 'x')]),
+    ];
+    await start();
+    vm().forgetTag('T1');
+    expect(state().bookmarks.single.tags, isEmpty);
   });
 
   test('loads more pages', () async {

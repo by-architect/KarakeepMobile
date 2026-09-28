@@ -81,6 +81,66 @@ void main() {
     expect(prefs.counts[account]!['list:L1']!.unarchived, 2);
   });
 
+  group('delete', () {
+    late FakeBookmarksRepository repo;
+    late ProviderContainer container;
+
+    ListsNavViewModel vm() => container.read(listsNavViewModelProvider.notifier);
+    ListsNavState state() => container.read(listsNavViewModelProvider);
+
+    setUp(() async {
+      repo = FakeBookmarksRepository(
+        lists: const [
+          BookmarkList(id: 'L1', name: 'Reading', icon: '📚'),
+          BookmarkList(id: 'L2', name: 'Later', icon: '⏰', parentId: 'L1'),
+          BookmarkList(id: 'L3', name: 'Zines', icon: '📰'),
+        ],
+      );
+      repo.tags = const [
+        TagSummary(id: 'T1', name: 'flutter', count: 3),
+        TagSummary(id: 'T2', name: 'rust', count: 1),
+      ];
+      container = ProviderContainer(
+        overrides: [
+          bookmarksRepositoryProvider.overrideWithValue(repo),
+          homePreferencesProvider.overrideWithValue(InMemoryHomePreferences()),
+          accountKeyProvider.overrideWithValue(account),
+        ],
+      );
+      container.listen(listsNavViewModelProvider, (_, _) {});
+      await pumpEventQueue();
+    });
+
+    tearDown(() => container.dispose());
+
+    test('a list: gone at once, lists inside it move to the top', () async {
+      await vm().deleteList(state().lists.first.list);
+      expect(repo.deletedLists, ['L1']);
+      expect(
+        [for (final e in state().lists) '${e.depth} ${e.list.name}'],
+        ['0 Later', '0 Zines'],
+      );
+      await pumpEventQueue(); // the refresh agrees
+      expect(state().lists.map((e) => e.list.name), ['Later', 'Zines']);
+    });
+
+    test('a tag', () async {
+      await vm().deleteTag(state().tags.first);
+      expect(repo.deletedTags, ['T1']);
+      expect(state().tags.map((t) => t.name), ['rust']);
+    });
+
+    test('a new list shows up in the tree', () async {
+      final created = vm().createList(
+        name: 'Inbox',
+        icon: '📥',
+        kind: ListKind.manual,
+      );
+      await created;
+      expect(state().lists.map((e) => e.list.name), contains('Inbox'));
+    });
+  });
+
   test('shows cached counts before the server answers', () {
     final prefs = InMemoryHomePreferences()
       ..counts[account] = {'list:L1': const ItemCount(total: 9, unarchived: 4)};

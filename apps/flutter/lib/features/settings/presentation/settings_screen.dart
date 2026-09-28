@@ -6,6 +6,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/grouped_section.dart';
 import '../../auth/auth_providers.dart';
+import '../../bookmarks/domain/entities/sort_order.dart';
 import '../../bookmarks/presentation/viewmodels/home_feed_view_model.dart';
 import '../domain/settings_repository.dart';
 import '../settings_providers.dart';
@@ -24,6 +25,8 @@ class SettingsScreen extends ConsumerWidget {
     final session = ref.watch(currentSessionProvider);
     final showArchived =
         ref.watch(homeFeedViewModelProvider.select((s) => s.showArchived));
+    final sortOrder =
+        ref.watch(homeFeedViewModelProvider.select((s) => s.sortOrder));
     final appVersion = ref.watch(appVersionProvider).value;
 
     return Scaffold(
@@ -68,6 +71,16 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: ref
                     .read(homeFeedViewModelProvider.notifier)
                     .setShowArchived,
+              ),
+              _Segmented<SortOrder>(
+                label: 'Order',
+                value: sortOrder,
+                options: const {
+                  SortOrder.newestFirst: 'Newest first',
+                  SortOrder.oldestFirst: 'Oldest first',
+                },
+                onChanged:
+                    ref.read(homeFeedViewModelProvider.notifier).setSortOrder,
               ),
               SwitchListTile(
                 title: const Text('Ask before deleting'),

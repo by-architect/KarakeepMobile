@@ -7,6 +7,7 @@ import 'package:linkstow/features/auth/domain/entities/session.dart';
 import 'package:linkstow/features/bookmarks/bookmarks_providers.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_list.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/sort_order.dart';
 import 'package:linkstow/features/settings/domain/settings_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -103,13 +104,77 @@ void main() {
     await pumpSignedIn(tester);
     expect(find.text('Article b'), findsNothing);
 
-    await tester.tap(find.byTooltip('Filter'));
+    await tester.tap(find.byTooltip('Sort and filter'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Show archived'));
     await tester.pumpAndSettle();
 
     expect(find.text('Article b'), findsOneWidget);
     expect(prefs.showArchived, isTrue);
+  });
+
+  testWidgets('oldest first turns the feed around and is remembered',
+      (tester) async {
+    await pumpSignedIn(tester);
+    double top(String text) => tester.getTopLeft(find.text(text)).dy;
+    expect(top('Article a'), lessThan(top('Article c')));
+
+    await tester.tap(find.byTooltip('Sort and filter'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Oldest first'));
+    await tester.pumpAndSettle();
+
+    expect(top('Article c'), lessThan(top('Article a')));
+    expect(prefs.sortOrder, SortOrder.oldestFirst);
+  });
+
+  testWidgets('press and hold a list to delete it; the feed leaves it',
+      (tester) async {
+    prefs.scopes['https://keep.example.com|u1'] =
+        const ListScope(id: 'L1', name: 'Reading', icon: '📚');
+    await pumpSignedIn(tester);
+    await openDrawer(tester);
+    Finder inDrawer(String text) =>
+        find.descendant(of: find.byType(Drawer), matching: find.text(text));
+
+    await tester.longPress(inDrawer('Reading'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete list'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete 📚 Reading?'), findsOneWidget);
+    // Recipes sits inside Reading.
+    expect(find.textContaining('lists inside it move to the top'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(bookmarks.deletedLists, ['L1']);
+    expect(inDrawer('Reading'), findsNothing);
+    expect(inDrawer('Recipes'), findsOneWidget);
+    expect(prefs.scopes.values.single, const AllScope());
+  });
+
+  testWidgets('press and hold a tag to delete it; cancel keeps it',
+      (tester) async {
+    await pumpSignedIn(tester);
+    await openDrawer(tester);
+
+    await tester.longPress(find.text('rust'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete tag'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete #rust?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(bookmarks.deletedTags, isEmpty);
+
+    await tester.longPress(find.text('rust'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete tag'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+    await tester.pumpAndSettle();
+    expect(bookmarks.deletedTags, ['T2']);
+    expect(find.text('rust'), findsNothing);
   });
 
   testWidgets('reopening the app restores list and filter', (tester) async {

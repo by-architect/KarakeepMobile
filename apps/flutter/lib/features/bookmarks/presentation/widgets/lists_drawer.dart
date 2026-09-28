@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/error/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/auth_providers.dart';
 import '../../domain/entities/bookmark_list.dart';
@@ -9,14 +10,16 @@ import '../../domain/entities/bookmark_scope.dart';
 import '../state/lists_nav_state.dart';
 import '../viewmodels/lists_nav_view_model.dart';
 import 'create_list_tag.dart';
+import 'delete_list_tag.dart';
 
 /// Left drawer: pick what the feed shows. Every row carries
-/// `unarchived / total`.
+/// `unarchived / total`. Press and hold a list or tag to delete it.
 class ListsDrawer extends ConsumerWidget {
   const ListsDrawer({
     super.key,
     required this.selected,
     required this.onSelect,
+    required this.onScopeDeleted,
     required this.onOpenSettings,
   });
 
@@ -25,6 +28,9 @@ class ListsDrawer extends ConsumerWidget {
 
   final BookmarkScope selected;
   final ValueChanged<BookmarkScope> onSelect;
+
+  /// A list or tag is gone from the server; the feed may be showing it.
+  final ValueChanged<BookmarkScope> onScopeDeleted;
   final VoidCallback onOpenSettings;
 
   @override
@@ -40,6 +46,7 @@ class ListsDrawer extends ConsumerWidget {
       bool smart = false,
       bool totalOnly = false,
       ItemCount? count,
+      ValueChanged<Offset>? onLongPress,
     }) {
       return _ScopeRow(
         leading: leading,
@@ -50,6 +57,50 @@ class ListsDrawer extends ConsumerWidget {
         totalOnly: totalOnly,
         selected: scope == selected,
         onTap: () => onSelect(scope),
+        onLongPress: onLongPress,
+      );
+    }
+
+    /// Delete [scope] on the server via [delete], then tell the feed.
+    Future<void> deleteScope(
+      BookmarkScope scope,
+      Future<void> Function() delete,
+      String done,
+    ) async {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        await delete();
+        onScopeDeleted(scope);
+        messenger.showSnackBar(SnackBar(content: Text(done)));
+      } on Failure catch (f) {
+        messenger.showSnackBar(SnackBar(content: Text(f.message)));
+      }
+    }
+
+    Future<void> deleteList(BookmarkList list, Offset at) async {
+      if (!await showDeleteMenu(context, at: at, label: 'Delete list')) return;
+      if (!context.mounted) return;
+      final hasSublists = state.lists.any((e) => e.list.parentId == list.id);
+      if (!await confirmDeleteList(context, list, hasSublists: hasSublists)) {
+        return;
+      }
+      if (!context.mounted) return;
+      await deleteScope(
+        ListScope(id: list.id, name: list.name, icon: list.icon),
+        () => vm.deleteList(list),
+        'Deleted ${list.icon} ${list.name}',
+      );
+    }
+
+    Future<void> deleteTag(TagSummary tag, Offset at) async {
+      if (!await showDeleteMenu(context, at: at, label: 'Delete tag')) return;
+      if (!context.mounted) return;
+      if (!await confirmDeleteTag(context, tag)) return;
+      if (!context.mounted) return;
+      await deleteScope(
+        TagScope(id: tag.id, name: tag.name),
+        () => vm.deleteTag(tag),
+        'Deleted #${tag.name}',
       );
     }
 
@@ -90,7 +141,7 @@ class ListsDrawer extends ConsumerWidget {
                       legend: 'unarchived / total',
                       busy: state.counting,
                     ),
-                    ..._lists(state, scopeRow, vm),
+                    ..._lists(state, scopeRow, vm, deleteList),
                     _AddRow(
                       label: 'Add list',
                       onTap: () => showCreateListSheet(context),
@@ -112,6 +163,7 @@ class ListsDrawer extends ConsumerWidget {
                           label: tag.name,
                           totalOnly: true,
                           count: ItemCount(total: tag.count),
+                          onLongPress: (at) => deleteTag(tag, at),
                         ),
                       if (state.tags.length > topTags)
                         Align(
@@ -160,8 +212,10 @@ class ListsDrawer extends ConsumerWidget {
       bool smart,
       bool totalOnly,
       ItemCount? count,
+      ValueChanged<Offset>? onLongPress,
     }) scopeRow,
     ListsNavViewModel vm,
+    Future<void> Function(BookmarkList list, Offset at) onDelete,
   ) {
     switch (state.status) {
       case ListsStatus.loading when state.lists.isEmpty:
@@ -174,7 +228,7 @@ class ListsDrawer extends ConsumerWidget {
           ),
         ];
       case _ when state.lists.isEmpty:
-        return const [_Hint('No lists yet. Create them on the web for now.')];
+        return const [_Hint('No lists yet.')];
       case _:
         return [
           for (final entry in state.lists)
@@ -188,6 +242,7 @@ class ListsDrawer extends ConsumerWidget {
               label: entry.list.name,
               depth: entry.depth,
               smart: entry.list.kind == ListKind.smart,
+              onLongPress: (at) => onDelete(entry.list, at),
             ),
         ];
     }
@@ -308,13 +363,14 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _ScopeRow extends StatelessWidget {
+class _ScopeRow extends StatefulWidget {
   const _ScopeRow({
     required this.leading,
     required this.label,
     required this.count,
     required this.selected,
     required this.onTap,
+    this.onLongPress,
     this.depth = 0,
     this.smart = false,
     this.totalOnly = false,
@@ -325,6 +381,9 @@ class _ScopeRow extends StatelessWidget {
   final ItemCount? count;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Gets where the finger is, to open a menu there.
+  final ValueChanged<Offset>? onLongPress;
   final int depth;
   final bool smart;
 
@@ -333,8 +392,23 @@ class _ScopeRow extends StatelessWidget {
   final bool totalOnly;
 
   @override
+  State<_ScopeRow> createState() => _ScopeRowState();
+}
+
+class _ScopeRowState extends State<_ScopeRow> {
+  /// Where the current press went down; a long press opens its menu there.
+  Offset? _pressedAt;
+
+  Offset _center() {
+    final box = context.findRenderObject()! as RenderBox;
+    return box.localToGlobal(box.size.center(Offset.zero));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final countText = _countText();
+    final onLongPress = widget.onLongPress;
+    final selected = widget.selected;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Material(
@@ -342,12 +416,17 @@ class _ScopeRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: onTap,
+          onTap: widget.onTap,
+          onTapDown: (d) => _pressedAt = d.globalPosition,
+          onLongPress: onLongPress == null
+              ? null
+              : () => onLongPress(_pressedAt ?? _center()),
           child: Padding(
-            padding: EdgeInsets.fromLTRB(12.0 + depth * 18, 11, 12, 11),
+            padding:
+                EdgeInsets.fromLTRB(12.0 + widget.depth * 18, 11, 12, 11),
             child: Row(
               children: [
-                SizedBox(width: 22, child: Center(child: leading)),
+                SizedBox(width: 22, child: Center(child: widget.leading)),
                 const SizedBox(width: 12),
                 // Label (+ smart badge) takes the free space so counts
                 // line up on the right edge.
@@ -356,7 +435,7 @@ class _ScopeRow extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          label,
+                          widget.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -369,7 +448,7 @@ class _ScopeRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (smart)
+                      if (widget.smart)
                         const Padding(
                           padding: EdgeInsets.only(left: 6),
                           child: Icon(
@@ -403,9 +482,9 @@ class _ScopeRow extends StatelessWidget {
   }
 
   String? _countText() {
-    final count = this.count;
+    final count = widget.count;
     if (count == null) return null;
-    if (totalOnly) return '${count.total}';
+    if (widget.totalOnly) return '${count.total}';
     return '${count.unarchived ?? '…'} / ${count.total}';
   }
 }

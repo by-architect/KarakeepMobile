@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../domain/entities/bookmark_list.dart';
 import '../../../domain/entities/bookmark_scope.dart';
+import '../../../domain/entities/sort_order.dart';
 import '../../../domain/repositories/home_preferences_repository.dart';
 
 /// [HomePreferencesRepository] on shared preferences. Nothing secret here;
@@ -12,6 +13,7 @@ class HomePreferencesLocalDataSource implements HomePreferencesRepository {
   const HomePreferencesLocalDataSource(this._prefs);
 
   static const _showArchivedKey = 'home.showArchived';
+  static const _sortOrderKey = 'home.sortOrder';
   static String _scopeKey(String account) => 'home.scope.$account';
   static String _countsKey(String account) => 'home.counts.$account';
 
@@ -23,6 +25,17 @@ class HomePreferencesLocalDataSource implements HomePreferencesRepository {
   @override
   Future<void> setShowArchived(bool value) =>
       _prefs.setBool(_showArchivedKey, value);
+
+  @override
+  SortOrder get sortOrder => _prefs.getString(_sortOrderKey) == 'oldest'
+      ? SortOrder.oldestFirst
+      : SortOrder.newestFirst;
+
+  @override
+  Future<void> setSortOrder(SortOrder value) => _prefs.setString(
+        _sortOrderKey,
+        value == SortOrder.oldestFirst ? 'oldest' : 'newest',
+      );
 
   @override
   BookmarkScope? lastScope(String accountKey) {
