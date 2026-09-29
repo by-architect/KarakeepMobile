@@ -26,6 +26,14 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
 
+      # Java 21, as on F-Droid's builder (Debian trixie) and the release machine.
+      # The runner's default is older, and AGP's lint calls List.removeLast(),
+      # which only exists from 21 — it crashes the release build without this.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       # the Flutter tag the app pins, the way fdroiddata's prebuild reads it
       - name: Flutter, at the pinned tag
         run: |
