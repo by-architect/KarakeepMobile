@@ -59,14 +59,6 @@ android {
                 if (releaseKeystore != null) signingConfigs.getByName("release") else null
         }
     }
-
-    // AGP otherwise stamps a "Dependency metadata" block into the APK's
-    // signing block, for Play Console. F-Droid's scanner rejects that block,
-    // and nothing outside Play reads it.
-    dependenciesInfo {
-        includeInApk = false
-        includeInBundle = false
-    }
 }
 
 // With --split-per-abi each APK gets versionCode * 10 + ABI, replacing
