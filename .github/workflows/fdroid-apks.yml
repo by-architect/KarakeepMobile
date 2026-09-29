@@ -80,7 +80,17 @@ jobs:
                "$GITHUB_WORKSPACE/dist/linkstow-$version-$abi.apk"
           done
 
-      - name: Replace the release assets
+      - name: Publish the release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ inputs.tag }}" dist/*.apk --clobber
+        working-directory: apps/flutter
+        run: |
+          set -eux
+          tag='${{ inputs.tag }}'
+          code=$(sed -n -E 's/^version:[[:space:]]*[^+]+\+([0-9]+).*/\1/p' pubspec.yaml)
+          notes="$GITHUB_WORKSPACE/fastlane/metadata/android/en-US/changelogs/$((code * 10 + 1)).txt"
+          cd "$GITHUB_WORKSPACE"
+          gh release view "$tag" >/dev/null 2>&1 \
+            || gh release create "$tag" --title "$tag" \
+                 $( [ -f "$notes" ] && printf -- '--notes-file %s' "$notes" || printf -- '--generate-notes' )
+          gh release upload "$tag" dist/*.apk --clobber
