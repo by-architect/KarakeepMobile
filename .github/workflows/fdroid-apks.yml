@@ -21,6 +21,9 @@ on:
 jobs:
   apks:
     runs-on: ubuntu-latest
+    # the built-in token is read-only by default; replacing release assets needs this
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
