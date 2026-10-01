@@ -12,6 +12,7 @@ import '../open_bookmark.dart';
 import '../state/home_feed_state.dart';
 import '../viewmodels/home_feed_view_model.dart';
 import '../viewmodels/lists_nav_view_model.dart';
+import '../widgets/add_bookmark.dart';
 import '../widgets/bookmark_card.dart';
 import '../widgets/lists_drawer.dart';
 import '../widgets/swipeable_bookmark.dart';
@@ -96,13 +97,17 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
             icon: const Icon(Icons.search_rounded),
             onPressed: () => context.push(Routes.search),
           ),
-          _FeedMenu(
-            state: state,
-            onSortOrder: (order) {
+          _SortMenu(
+            sort: state.sort,
+            onChanged: (sort) {
               if (_scrollController.hasClients) _scrollController.jumpTo(0);
-              _vm.setSortOrder(order);
+              _vm.setSort(sort);
             },
-            onShowArchived: _vm.setShowArchived,
+          ),
+          _FilterMenu(
+            showArchived: state.showArchived,
+            enabled: state.archivedFilterApplies,
+            onChanged: _vm.setShowArchived,
           ),
           const SizedBox(width: 4),
         ],
@@ -110,6 +115,14 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: _body(state),
+      ),
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Add',
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.foreground,
+        onPressed: () =>
+            showAddBookmarkSheet(context, ref, scope: state.scope),
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
@@ -147,7 +160,8 @@ class _BookmarksHomeScreenState extends ConsumerState<BookmarksHomeScreen> {
           child: ListView.separated(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+            // Room at the end so the Add button never covers the last card.
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
             itemCount: state.bookmarks.length + 1,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, i) {
@@ -238,46 +252,78 @@ class _ScopeTitle extends StatelessWidget {
   }
 }
 
-/// Order (by date saved) and the archived filter. A dot on the icon when
-/// either isn't the default.
-class _FeedMenu extends StatelessWidget {
-  const _FeedMenu({
-    required this.state,
-    required this.onSortOrder,
-    required this.onShowArchived,
-  });
+/// Sort by date added, title or website; "Reverse order" turns it around.
+/// A dot on the icon when it isn't newest first.
+class _SortMenu extends StatelessWidget {
+  const _SortMenu({required this.sort, required this.onChanged});
 
-  final HomeFeedState state;
-  final ValueChanged<SortOrder> onSortOrder;
-  final ValueChanged<bool> onShowArchived;
+  final FeedSort sort;
+  final ValueChanged<FeedSort> onChanged;
+
+  static String label(SortField field) => switch (field) {
+        SortField.dateAdded => 'Date added',
+        SortField.title => 'Title',
+        SortField.website => 'Website',
+      };
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<VoidCallback>(
-      tooltip: 'Sort and filter',
+    return PopupMenuButton<FeedSort>(
+      tooltip: 'Sort',
       color: AppColors.popover,
       icon: Badge(
-        isLabelVisible: state.isCustomized,
+        isLabelVisible: !sort.isDefault,
+        smallSize: 7,
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.sort_rounded),
+      ),
+      onSelected: onChanged,
+      itemBuilder: (_) => [
+        for (final field in SortField.values)
+          CheckedPopupMenuItem(
+            value: sort.copyWith(field: field),
+            checked: sort.field == field,
+            child: Text(label(field)),
+          ),
+        const PopupMenuDivider(),
+        CheckedPopupMenuItem(
+          value: sort.copyWith(reversed: !sort.reversed),
+          checked: sort.reversed,
+          child: const Text('Reverse order'),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterMenu extends StatelessWidget {
+  const _FilterMenu({
+    required this.showArchived,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool showArchived;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<bool>(
+      tooltip: 'Filter',
+      color: AppColors.popover,
+      icon: Badge(
+        isLabelVisible: enabled && showArchived,
         smallSize: 7,
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.filter_list_rounded),
       ),
-      onSelected: (action) => action(),
+      onSelected: onChanged,
       itemBuilder: (_) => [
-        for (final (order, label) in const [
-          (SortOrder.newestFirst, 'Newest first'),
-          (SortOrder.oldestFirst, 'Oldest first'),
-        ])
-          CheckedPopupMenuItem(
-            value: () => onSortOrder(order),
-            checked: state.sortOrder == order,
-            child: Text(label),
-          ),
-        const PopupMenuDivider(),
         CheckedPopupMenuItem(
-          value: () => onShowArchived(!state.showArchived),
-          checked: state.showArchived,
-          enabled: state.archivedFilterApplies,
+          value: !showArchived,
+          checked: showArchived,
+          enabled: enabled,
           child: const Text('Show archived'),
         ),
       ],

@@ -22,6 +22,9 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
   /// server; the count is then a lower bound.
   static const _maxCountPages = 100;
 
+  /// Loading a whole feed to sort it stops past 5k items.
+  static const _maxAllPages = 50;
+
   final BookmarksRemoteDataSource _remote;
 
   /// Changes sent but not yet answered. Feeds and counts wait for them: a
@@ -37,6 +40,29 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
     String? cursor,
   }) =>
       _read(() => _page(scope, includeArchived, order, cursor, _pageSize));
+
+  @override
+  Future<List<Bookmark>> getAllBookmarks(
+    BookmarkScope scope, {
+    required bool includeArchived,
+  }) =>
+      _read(() async {
+        final all = <Bookmark>[];
+        String? cursor;
+        for (var page = 0; page < _maxAllPages; page++) {
+          final result = await _page(
+            scope,
+            includeArchived,
+            SortOrder.newestFirst,
+            cursor,
+            _countPageSize,
+          );
+          all.addAll(result.bookmarks);
+          cursor = result.nextCursor;
+          if (cursor == null) break;
+        }
+        return all;
+      });
 
   Future<BookmarkPage> _page(
     BookmarkScope scope,
@@ -192,6 +218,43 @@ class BookmarksRepositoryImpl implements BookmarksRepository {
         final content = json['content'];
         final html = content is Map ? content['htmlContent'] as String? : null;
         return (html == null || html.trim().isEmpty) ? null : html;
+      });
+
+  @override
+  Future<Bookmark> createLink(String url) => _write(
+        () async => BookmarkJson.bookmark(
+          await _remote.createBookmark({
+            'type': 'link',
+            'url': url.trim(),
+            'source': 'mobile',
+          }),
+        ),
+      );
+
+  @override
+  Future<Bookmark> createNote(String text) => _write(
+        () async => BookmarkJson.bookmark(
+          await _remote.createBookmark({
+            'type': 'text',
+            'text': text,
+            'source': 'mobile',
+          }),
+        ),
+      );
+
+  @override
+  Future<Bookmark> createImage(String path, String fileName) =>
+      _write(() async {
+        final assetId = await _remote.uploadAsset(path, fileName);
+        return BookmarkJson.bookmark(
+          await _remote.createBookmark({
+            'type': 'asset',
+            'assetType': 'image',
+            'assetId': assetId,
+            'fileName': fileName,
+            'source': 'mobile',
+          }),
+        );
       });
 
   @override

@@ -17,6 +17,10 @@ import '../state/lists_nav_state.dart';
 /// on the device so the drawer shows last known numbers instantly.
 class ListsNavViewModel extends Notifier<ListsNavState> {
   static const _parallelCounts = 3;
+
+  /// Tags the drawer shows before "Show all" — only those get counted until
+  /// the rest are shown, since each count costs requests.
+  static const topTags = 10;
   static const _staleAfter = Duration(minutes: 2);
 
   var _generation = 0;
@@ -33,11 +37,25 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
   }
 
   Future<void> loadTags() async {
+    final generation = _generation;
     state = state.copyWith(tagsError: () => null);
     try {
       final tags = await _repo.getTags();
       if (!ref.mounted) return;
-      state = state.copyWith(tags: tags, tagsLoaded: true);
+      final previous = state.counts;
+      state = state.copyWith(
+        tags: tags,
+        tagsLoaded: true,
+        counts: {
+          ...previous,
+          for (final t in tags)
+            _tagKey(t): ItemCount(
+              total: t.count,
+              unarchived: previous[_tagKey(t)]?.unarchived,
+            ),
+        },
+      );
+      await _countTags(generation);
     } on Failure catch (f) {
       if (!ref.mounted) return;
       state = state.copyWith(tagsLoaded: true, tagsError: () => f.message);
@@ -109,8 +127,27 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
   /// refresh counts next time the drawer opens.
   void markStale() => _lastRefresh = null;
 
-  void toggleAllTags() =>
-      state = state.copyWith(showAllTags: !state.showAllTags);
+  void toggleAllTags() {
+    state = state.copyWith(showAllTags: !state.showAllTags);
+    if (state.showAllTags) _countTags(_generation, onlyMissing: true);
+  }
+
+  static String _tagKey(TagSummary t) => TagScope.prefix + t.id;
+
+  /// Unarchived counts for the tags on show ([onlyMissing]: just those
+  /// that have none yet).
+  Future<void> _countTags(int generation, {bool onlyMissing = false}) =>
+      _countUnarchived(
+        generation,
+        [
+          for (final t in state.showAllTags
+              ? state.tags
+              : state.tags.take(topTags))
+            if (!onlyMissing || state.counts[_tagKey(t)]?.unarchived == null)
+              TagScope(id: t.id, name: t.name),
+        ],
+        listsSpinner: false,
+      );
 
   /// Called when the drawer opens; skips if the data is recent.
   void refreshIfStale() {
@@ -139,6 +176,9 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
           ItemCount(total: total, unarchived: previous[key]?.unarchived);
 
       final counts = <String, ItemCount>{
+        // Tags keep their numbers; loadTags below refreshes them.
+        for (final MapEntry(:key, :value) in previous.entries)
+          if (key.startsWith(TagScope.prefix)) key: value,
         AllScope.keyValue: ItemCount(
           total: library.bookmarks,
           unarchived: library.bookmarks - library.archived,
@@ -170,10 +210,13 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
     }
   }
 
+  /// [listsSpinner]: these are the lists' counts, which the LISTS header
+  /// shows a spinner for until done.
   Future<void> _countUnarchived(
     int generation,
-    List<BookmarkScope> scopes,
-  ) async {
+    List<BookmarkScope> scopes, {
+    bool listsSpinner = true,
+  }) async {
     final queue = [...scopes];
     Future<void> worker() async {
       while (queue.isNotEmpty && _current(generation)) {
@@ -197,7 +240,7 @@ class ListsNavViewModel extends Notifier<ListsNavState> {
 
     await Future.wait(List.generate(_parallelCounts, (_) => worker()));
     if (!_current(generation)) return;
-    state = state.copyWith(counting: false);
+    if (listsSpinner) state = state.copyWith(counting: false);
     await ref
         .read(homePreferencesProvider)
         .setCachedCounts(ref.read(accountKeyProvider), state.counts);

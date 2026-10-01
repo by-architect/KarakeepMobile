@@ -24,7 +24,7 @@ void main() {
   test('defaults: newest first, archived hidden, no scope, no counts',
       () async {
     final prefs = await launch();
-    expect(prefs.sortOrder, SortOrder.newestFirst);
+    expect(prefs.sort, const FeedSort());
     expect(prefs.showArchived, isFalse);
     expect(prefs.lastScope('acc'), isNull);
     expect(prefs.cachedCounts('acc'), isEmpty);
@@ -33,7 +33,9 @@ void main() {
   test('survives a relaunch', () async {
     final first = await launch();
     await first.setShowArchived(true);
-    await first.setSortOrder(SortOrder.oldestFirst);
+    await first.setSort(
+      const FeedSort(field: SortField.title, reversed: true),
+    );
     await first.setLastScope(
       'acc',
       const ListScope(id: 'L1', name: 'Reading', icon: '📚'),
@@ -45,7 +47,10 @@ void main() {
 
     final second = await launch();
     expect(second.showArchived, isTrue);
-    expect(second.sortOrder, SortOrder.oldestFirst);
+    expect(
+      second.sort,
+      const FeedSort(field: SortField.title, reversed: true),
+    );
     final scope = second.lastScope('acc')! as ListScope;
     expect(scope.id, 'L1');
     expect(scope.name, 'Reading');

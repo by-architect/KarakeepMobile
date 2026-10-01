@@ -141,6 +141,29 @@ void main() {
     });
   });
 
+  test('tags get unarchived / total too, cached like lists', () async {
+    final repo = FakeBookmarksRepository(
+      items: {
+        'tag:T1': [link('a'), link('b', archived: true)],
+      },
+    )..tags = const [TagSummary(id: 'T1', name: 'flutter', count: 2)];
+    final prefs = InMemoryHomePreferences();
+    final container = ProviderContainer(
+      overrides: [
+        bookmarksRepositoryProvider.overrideWithValue(repo),
+        homePreferencesProvider.overrideWithValue(prefs),
+        accountKeyProvider.overrideWithValue(account),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(listsNavViewModelProvider, (_, _) {});
+    await pumpEventQueue();
+
+    final count = container.read(listsNavViewModelProvider).counts['tag:T1']!;
+    expect('${count.unarchived} / ${count.total}', '1 / 2');
+    expect(prefs.counts[account]!['tag:T1']!.unarchived, 1);
+  });
+
   test('shows cached counts before the server answers', () {
     final prefs = InMemoryHomePreferences()
       ..counts[account] = {'list:L1': const ItemCount(total: 9, unarchived: 4)};

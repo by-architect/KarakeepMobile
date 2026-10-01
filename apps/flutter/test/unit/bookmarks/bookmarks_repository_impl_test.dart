@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:linkstow/core/error/failure.dart';
@@ -59,6 +60,44 @@ void main() {
       ),
     );
   }
+
+  test('adding a link, and an image: upload first, then save', () async {
+    final r = repo({
+      'POST /api/v1/bookmarks': (o) => (
+            status: 201,
+            body: {
+              ...bookmarkJson('n1'),
+              'content': {
+                'type': (o.data as Map)['type'],
+                'url': 'https://example.org',
+                'assetType': 'image',
+                'assetId': 'as1',
+              },
+            },
+          ),
+      'POST /api/v1/assets': (_) => (
+            status: 200,
+            body: {'assetId': 'as1', 'contentType': 'image/jpeg'},
+          ),
+    });
+    await r.createLink(' https://example.org ');
+    final file = File('${Directory.systemTemp.path}/linkstow-test.jpg')
+      ..writeAsBytesSync([0xff, 0xd8, 0xff]);
+    addTearDown(file.deleteSync);
+    await r.createImage(file.path, 'cat.jpg');
+
+    expect(
+      adapter.requests.map((o) => '${o.method} ${o.uri.path}'),
+      ['POST /api/v1/bookmarks', 'POST /api/v1/assets', 'POST /api/v1/bookmarks'],
+    );
+    expect(adapter.requests[0].data, {
+      'type': 'link',
+      'url': 'https://example.org',
+      'source': 'mobile',
+    });
+    expect(adapter.requests[2].data, containsPair('assetId', 'as1'));
+    expect(adapter.requests[2].data, containsPair('assetType', 'image'));
+  });
 
   test('deleting a list and a tag', () async {
     final r = repo({

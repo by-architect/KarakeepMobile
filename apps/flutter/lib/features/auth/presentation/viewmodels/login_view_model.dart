@@ -27,8 +27,11 @@ class LoginViewModel extends Notifier<LoginState> {
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
+  /// Starts on Karakeep Cloud's address as real text: easy to sign in there,
+  /// or to replace with your own server's.
   @override
-  LoginState build() => const LoginState();
+  LoginState build() =>
+      const LoginState(serverUrl: AppConfig.defaultServerUrl);
 
   // ── Server ────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 name: linkstow
 description: "Linkstow — an unofficial mobile client for self-hosted Karakeep."
 publish_to: 'none'
-version: 0.1.1+2
+version: 1.3.0+4
 
 environment:
   sdk: ^3.13.0
@@ -15,6 +15,7 @@ dependencies:
   flutter_riverpod: ^3.4.3
   flutter_secure_storage: ^11.2.0
   go_router: ^18.0.1
+  image_picker: ^1.2.3
   material_ui: ^1.1.0
   package_info_plus: ^10.2.1
   share_plus: ^13.3.0

@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../state/login_state.dart';
 
@@ -87,6 +88,11 @@ class ServerStatusFooter extends StatelessWidget {
         );
       case ServerStatus.checking:
         return const Text('Checking server…');
+      case ServerStatus.unchecked
+          when state.serverUrl.trim() == AppConfig.defaultServerUrl:
+        return const Text(
+          'Karakeep Cloud. Self-hosting? Put your own server’s address here.',
+        );
       case ServerStatus.unchecked:
         return Text.rich(
           TextSpan(

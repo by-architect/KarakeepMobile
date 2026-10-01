@@ -36,6 +36,13 @@ abstract interface class BookmarksRepository {
     String? cursor,
   });
 
+  /// Every item of [scope], newest first, for sorting on the phone by
+  /// something the server can't sort by. Stops at a few thousand.
+  Future<List<Bookmark>> getAllBookmarks(
+    BookmarkScope scope, {
+    required bool includeArchived,
+  });
+
   /// Karakeep query-language search (docs/research §6), best match first.
   Future<BookmarkPage> search(String query, {String? cursor});
 
@@ -72,6 +79,15 @@ abstract interface class BookmarksRepository {
   /// Karakeep's cleaned-up article HTML for reader view, or null when the
   /// page wasn't crawled or had no readable content.
   Future<String?> getReaderHtml(String id);
+
+  /// Save a web page. Saving one that's already there returns that one.
+  Future<Bookmark> createLink(String url);
+
+  /// Save a note.
+  Future<Bookmark> createNote(String text);
+
+  /// Upload a picture from the phone ([path]) and save it.
+  Future<Bookmark> createImage(String path, String fileName);
 
   Future<void> setFavourited(String id, bool value);
   Future<void> setArchived(String id, bool value);

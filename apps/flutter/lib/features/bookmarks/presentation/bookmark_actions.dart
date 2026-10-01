@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/failure.dart';
 import '../bookmarks_providers.dart';
 import '../domain/entities/bookmark.dart';
+import '../domain/entities/bookmark_scope.dart';
 import '../domain/repositories/bookmarks_repository.dart';
 import 'feed_host.dart';
 import 'viewmodels/lists_nav_view_model.dart';
@@ -90,6 +91,30 @@ class BookmarkActions {
   /// Stage and commit at once (no undo window).
   Future<void> delete(BookmarkFeedHost host, Bookmark b) =>
       commitDelete(host, b, stageDelete(host, b));
+
+  /// Saves a new bookmark with [make] and puts it where it was added from:
+  /// into the open list ([manualList] — smart lists fill themselves), under
+  /// the open tag, or among favorites.
+  Future<Bookmark> create(
+    Future<Bookmark> Function(BookmarksRepository repo) make, {
+    BookmarkScope? scope,
+    bool manualList = false,
+  }) async {
+    var b = await make(_repo);
+    switch (scope) {
+      case ListScope(:final id) when manualList:
+        await _repo.addToList(id, b.id);
+      case TagScope(:final name):
+        await _repo.attachTag(b.id, name);
+      case FavouritesScope():
+        await _repo.setFavourited(b.id, true);
+        b = b.copyWith(favourited: true);
+      default:
+        break;
+    }
+    _changed();
+    return b;
+  }
 
   Future<Set<String>> listIdsOf(Bookmark b) => _repo.listIdsOf(b.id);
 

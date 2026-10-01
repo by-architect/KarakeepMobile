@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:linkstow/app.dart';
@@ -7,7 +8,9 @@ import 'package:linkstow/features/auth/domain/entities/session.dart';
 import 'package:linkstow/features/bookmarks/bookmarks_providers.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_list.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/bookmark_scope.dart';
+import 'package:linkstow/features/bookmarks/domain/entities/bookmark.dart';
 import 'package:linkstow/features/bookmarks/domain/entities/sort_order.dart';
+import 'package:linkstow/features/bookmarks/presentation/widgets/add_bookmark.dart';
 import 'package:linkstow/features/settings/domain/settings_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -38,6 +41,9 @@ void main() {
           bookmarksRepositoryProvider.overrideWithValue(bookmarks),
           homePreferencesProvider.overrideWithValue(prefs),
           ...settingsOverrides(settings: settings, cleaner: cleaner),
+          imagePickProvider.overrideWithValue(
+            () async => (path: '/tmp/cat.jpg', name: 'cat.jpg'),
+          ),
         ],
         child: const App(),
       ),
@@ -104,7 +110,7 @@ void main() {
     await pumpSignedIn(tester);
     expect(find.text('Article b'), findsNothing);
 
-    await tester.tap(find.byTooltip('Sort and filter'));
+    await tester.tap(find.byTooltip('Filter'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Show archived'));
     await tester.pumpAndSettle();
@@ -119,13 +125,13 @@ void main() {
     double top(String text) => tester.getTopLeft(find.text(text)).dy;
     expect(top('Article a'), lessThan(top('Article c')));
 
-    await tester.tap(find.byTooltip('Sort and filter'));
+    await tester.tap(find.byTooltip('Sort'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Oldest first'));
+    await tester.tap(find.text('Reverse order'));
     await tester.pumpAndSettle();
 
     expect(top('Article c'), lessThan(top('Article a')));
-    expect(prefs.sortOrder, SortOrder.oldestFirst);
+    expect(prefs.sort, const FeedSort(reversed: true));
   });
 
   testWidgets('press and hold a list to delete it; the feed leaves it',
@@ -177,6 +183,85 @@ void main() {
     expect(find.text('rust'), findsNothing);
   });
 
+  group('Add button', () {
+    Future<void> add(WidgetTester tester, String option) async {
+      // An empty clipboard: the link dialog looks there first.
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async =>
+            call.method == 'Clipboard.getData' ? {'text': ''} : null,
+      );
+      await tester.tap(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(option));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('adds a link, filling in https://', (tester) async {
+      await pumpSignedIn(tester);
+      await add(tester, 'Add link');
+      await tester.enterText(find.byType(TextField), 'example.org/read');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final saved = bookmarks.created.single.content as LinkContent;
+      expect(saved.url, 'https://example.org/read');
+      expect(find.text('https://example.org/read'), findsOneWidget); // feed
+      expect(find.text('Saved'), findsOneWidget);
+    });
+
+    testWidgets('a note added inside a list goes into that list',
+        (tester) async {
+      prefs.scopes['https://keep.example.com|u1'] =
+          const ListScope(id: 'L1', name: 'Reading', icon: '📚');
+      await pumpSignedIn(tester);
+      await add(tester, 'Add text');
+      await tester.enterText(find.byType(TextField), 'Buy milk');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final note = bookmarks.created.single;
+      expect((note.content as TextContent).text, 'Buy milk');
+      expect(bookmarks.listMembership[note.id], {'L1'});
+    });
+
+    testWidgets('adds an image from the gallery', (tester) async {
+      await pumpSignedIn(tester);
+      await add(tester, 'Add image');
+      await tester.pumpAndSettle();
+      final image = bookmarks.created.single.content as AssetContent;
+      expect(image.fileName, 'cat.jpg');
+      expect(find.text('Saved'), findsOneWidget);
+    });
+
+    testWidgets('a link that isn’t one is refused', (tester) async {
+      await pumpSignedIn(tester);
+      await add(tester, 'Add link');
+      await tester.enterText(find.byType(TextField), 'hello');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('That doesn’t look like a web address.'), findsOneWidget);
+      expect(bookmarks.created, isEmpty);
+    });
+  });
+
+  testWidgets('sort by title, from the Sort menu', (tester) async {
+    bookmarks.items['all'] = [
+      link('x', title: 'Zebra'),
+      link('y', title: 'apple'),
+    ];
+    await pumpSignedIn(tester);
+    double top(String text) => tester.getTopLeft(find.text(text)).dy;
+    expect(top('Zebra'), lessThan(top('apple')));
+
+    await tester.tap(find.byTooltip('Sort'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Title'));
+    await tester.pumpAndSettle();
+    expect(top('apple'), lessThan(top('Zebra')));
+    expect(prefs.sort, const FeedSort(field: SortField.title));
+  });
+
   testWidgets('reopening the app restores list and filter', (tester) async {
     prefs
       ..showArchived = true
@@ -193,7 +278,7 @@ void main() {
     await openDrawer(tester);
 
     expect(find.text('TAGS'), findsOneWidget);
-    expect(find.text('7'), findsOneWidget); // total only for tags
+    expect(find.text('1 / 7'), findsOneWidget); // unarchived / total
     await tester.tap(find.text('flutter'));
     await tester.pumpAndSettle();
 

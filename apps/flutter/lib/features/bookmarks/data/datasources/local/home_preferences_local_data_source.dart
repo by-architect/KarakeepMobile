@@ -13,7 +13,11 @@ class HomePreferencesLocalDataSource implements HomePreferencesRepository {
   const HomePreferencesLocalDataSource(this._prefs);
 
   static const _showArchivedKey = 'home.showArchived';
-  static const _sortOrderKey = 'home.sortOrder';
+  /// `<field>` or `<field>:reversed`.
+  static const _sortKey = 'home.sort';
+
+  /// 1.2's date-only setting, read once if [_sortKey] isn't there yet.
+  static const _oldSortOrderKey = 'home.sortOrder';
   static String _scopeKey(String account) => 'home.scope.$account';
   static String _countsKey(String account) => 'home.counts.$account';
 
@@ -27,14 +31,24 @@ class HomePreferencesLocalDataSource implements HomePreferencesRepository {
       _prefs.setBool(_showArchivedKey, value);
 
   @override
-  SortOrder get sortOrder => _prefs.getString(_sortOrderKey) == 'oldest'
-      ? SortOrder.oldestFirst
-      : SortOrder.newestFirst;
+  FeedSort get sort {
+    final raw = _prefs.getString(_sortKey);
+    if (raw == null) {
+      return FeedSort(
+        reversed: _prefs.getString(_oldSortOrderKey) == 'oldest',
+      );
+    }
+    final [name, ...rest] = raw.split(':');
+    return FeedSort(
+      field: SortField.values.asNameMap()[name] ?? SortField.dateAdded,
+      reversed: rest.contains('reversed'),
+    );
+  }
 
   @override
-  Future<void> setSortOrder(SortOrder value) => _prefs.setString(
-        _sortOrderKey,
-        value == SortOrder.oldestFirst ? 'oldest' : 'newest',
+  Future<void> setSort(FeedSort value) => _prefs.setString(
+        _sortKey,
+        '${value.field.name}${value.reversed ? ':reversed' : ''}',
       );
 
   @override
