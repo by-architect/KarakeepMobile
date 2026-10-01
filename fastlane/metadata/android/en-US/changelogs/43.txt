@@ -1,0 +1,9 @@
+- Add links, notes and pictures with the new + button
+- Sort by date added, title or website, or reverse it
+- Tags show how many are not archived yet
+- Delete a list or tag: press and hold it in the side menu
+- Make a new list from "Add to lists"
+- Sign-in starts with the Karakeep Cloud address and has a sign-up link
+- Opened pages scroll up and down properly
+- Archiving one after another goes all the way through
+- Links that try to open another app (like Facebook) no longer show an error

@@ -9,8 +9,8 @@ abstract interface class HomePreferencesRepository {
   Future<void> setShowArchived(bool value);
 
   /// Feed order; the same for every list and tag.
-  SortOrder get sortOrder;
-  Future<void> setSortOrder(SortOrder value);
+  FeedSort get sort;
+  Future<void> setSort(FeedSort value);
 
   /// Last selected scope for the account, or null.
   BookmarkScope? lastScope(String accountKey);

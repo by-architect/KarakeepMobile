@@ -102,6 +102,21 @@ class FakeBookmarksRepository implements BookmarksRepository {
   }
 
   @override
+  Future<List<Bookmark>> getAllBookmarks(
+    BookmarkScope scope, {
+    required bool includeArchived,
+  }) async {
+    allCalls.add(scope.key);
+    if (failure != null) throw failure!;
+    return [
+      for (final b in items[scope.key] ?? const <Bookmark>[])
+        if (scope is ArchivedScope || includeArchived || !b.archived) b,
+    ];
+  }
+
+  final allCalls = <String>[];
+
+  @override
   Future<BookmarkPage> search(String query, {String? cursor}) async {
     searchQueries.add(query);
     if (failure != null) throw failure!;
@@ -224,6 +239,55 @@ class FakeBookmarksRepository implements BookmarksRepository {
   @override
   Future<String?> getReaderHtml(String id) async => '<p>Reader $id</p>';
 
+  final created = <Bookmark>[];
+
+  Bookmark _create(Bookmark Function(String id) make) {
+    final b = make('new${created.length + 1}');
+    created.add(b);
+    items['all'] = [b, ...?items['all']];
+    return b;
+  }
+
+  @override
+  Future<Bookmark> createLink(String url) async {
+    if (failure != null) throw failure!;
+    return _create(
+      (id) => Bookmark(
+        id: id,
+        createdAt: DateTime.utc(2026, 10, 1),
+        content: LinkContent(url: url),
+      ),
+    );
+  }
+
+  @override
+  Future<Bookmark> createNote(String text) async {
+    if (failure != null) throw failure!;
+    return _create(
+      (id) => Bookmark(
+        id: id,
+        createdAt: DateTime.utc(2026, 10, 1),
+        content: TextContent(text: text),
+      ),
+    );
+  }
+
+  @override
+  Future<Bookmark> createImage(String path, String fileName) async {
+    if (failure != null) throw failure!;
+    return _create(
+      (id) => Bookmark(
+        id: id,
+        createdAt: DateTime.utc(2026, 10, 1),
+        content: AssetContent(
+          assetId: 'asset-$id',
+          assetType: AssetKind.image,
+          fileName: fileName,
+        ),
+      ),
+    );
+  }
+
   @override
   Future<void> setFavourited(String id, bool value) async {
     _check(id);
@@ -295,13 +359,13 @@ class FakeBookmarksRepository implements BookmarksRepository {
 class InMemoryHomePreferences implements HomePreferencesRepository {
   InMemoryHomePreferences({
     this.showArchived = false,
-    this.sortOrder = SortOrder.newestFirst,
+    this.sort = const FeedSort(),
   });
 
   @override
   bool showArchived;
   @override
-  SortOrder sortOrder;
+  FeedSort sort;
   final scopes = <String, BookmarkScope>{};
   final counts = <String, Map<String, ItemCount>>{};
 
@@ -309,7 +373,7 @@ class InMemoryHomePreferences implements HomePreferencesRepository {
   Future<void> setShowArchived(bool value) async => showArchived = value;
 
   @override
-  Future<void> setSortOrder(SortOrder value) async => sortOrder = value;
+  Future<void> setSort(FeedSort value) async => sort = value;
 
   @override
   BookmarkScope? lastScope(String accountKey) => scopes[accountKey];

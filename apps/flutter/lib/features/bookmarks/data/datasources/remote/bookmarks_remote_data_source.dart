@@ -128,6 +128,25 @@ class BookmarksRemoteDataSource {
     return response.data!;
   }
 
+  /// REST `POST /api/v1/bookmarks` → the new bookmark (or the existing one
+  /// when that link was saved before).
+  Future<Map<String, Object?>> createBookmark(Map<String, Object?> body) async {
+    final response =
+        await _dio.post<Map<String, Object?>>('/api/v1/bookmarks', data: body);
+    return response.data!;
+  }
+
+  /// REST `POST /api/v1/assets` (multipart `file`) → `{assetId, …}`. The
+  /// server works out the type from the bytes.
+  Future<String> uploadAsset(String path, String fileName) async {
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(path, filename: fileName),
+    });
+    final response =
+        await _dio.post<Map<String, Object?>>('/api/v1/assets', data: form);
+    return response.data!['assetId']! as String;
+  }
+
   /// REST `PATCH /api/v1/bookmarks/{id}`.
   Future<void> patchBookmark(String id, Map<String, Object?> changes) =>
       _dio.patch<void>('/api/v1/bookmarks/$id', data: changes);

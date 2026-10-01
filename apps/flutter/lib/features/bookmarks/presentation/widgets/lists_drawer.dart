@@ -24,7 +24,7 @@ class ListsDrawer extends ConsumerWidget {
   });
 
   /// Tags shown before "Show all".
-  static const topTags = 10;
+  static const topTags = ListsNavViewModel.topTags;
 
   final BookmarkScope selected;
   final ValueChanged<BookmarkScope> onSelect;
@@ -146,7 +146,10 @@ class ListsDrawer extends ConsumerWidget {
                       label: 'Add list',
                       onTap: () => showCreateListSheet(context),
                     ),
-                    const _SectionHeader(title: 'TAGS', legend: 'total'),
+                    const _SectionHeader(
+                      title: 'TAGS',
+                      legend: 'unarchived / total',
+                    ),
                     if (!state.tagsLoaded)
                       const _Loading()
                     else if (state.tagsError != null)
@@ -161,8 +164,6 @@ class ListsDrawer extends ConsumerWidget {
                           TagScope(id: tag.id, name: tag.name),
                           leading: const _RowIcon(Icons.tag_rounded),
                           label: tag.name,
-                          totalOnly: true,
-                          count: ItemCount(total: tag.count),
                           onLongPress: (at) => deleteTag(tag, at),
                         ),
                       if (state.tags.length > topTags)
@@ -387,8 +388,7 @@ class _ScopeRow extends StatefulWidget {
   final int depth;
   final bool smart;
 
-  /// Only the total shows: Archived (its unarchived count is always 0) and
-  /// tags (counting each would cost a request per tag).
+  /// Only the total shows: Archived (its unarchived count is always 0).
   final bool totalOnly;
 
   @override

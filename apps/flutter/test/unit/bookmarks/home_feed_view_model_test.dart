@@ -82,21 +82,37 @@ void main() {
 
   test('oldest first reloads in that order and is remembered', () async {
     await start();
-    await vm().setSortOrder(SortOrder.oldestFirst);
-    expect(prefs.sortOrder, SortOrder.oldestFirst);
+    await vm().setSort(const FeedSort(reversed: true));
+    expect(prefs.sort, const FeedSort(reversed: true));
     expect(repo.calls.last.order, SortOrder.oldestFirst);
     expect(state().bookmarks.map((b) => b.id), ['c', 'a']);
 
-    // Paging and changing scope keep the order.
+    // Changing scope keeps the order.
     await vm().selectScope(reading);
     expect(repo.calls.last.order, SortOrder.oldestFirst);
-    expect(state().sortOrder, SortOrder.oldestFirst);
+    expect(state().sort, const FeedSort(reversed: true));
+  });
+
+  test('title sorts the whole feed here, A to Z or reversed', () async {
+    repo.items['all'] = [
+      link('1', title: 'banana'),
+      link('2', title: 'Apple'),
+      link('3', title: 'cherry'),
+    ];
+    await start();
+    await vm().setSort(const FeedSort(field: SortField.title));
+    expect(repo.allCalls, ['all']);
+    expect(state().bookmarks.map((b) => b.id), ['2', '1', '3']);
+    expect(state().hasMore, isFalse);
+
+    await vm().setSort(const FeedSort(field: SortField.title, reversed: true));
+    expect(state().bookmarks.map((b) => b.id), ['3', '1', '2']);
   });
 
   test('starts in the remembered order', () async {
-    prefs.sortOrder = SortOrder.oldestFirst;
+    prefs.sort = const FeedSort(reversed: true);
     await start();
-    expect(state().sortOrder, SortOrder.oldestFirst);
+    expect(state().sort, const FeedSort(reversed: true));
     expect(repo.calls.single.order, SortOrder.oldestFirst);
   });
 

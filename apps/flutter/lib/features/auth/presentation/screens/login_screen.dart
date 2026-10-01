@@ -1,12 +1,14 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/grouped_section.dart';
 import '../../../../core/widgets/inline_banner.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../domain/server_url.dart';
 import '../state/login_state.dart';
 import '../viewmodels/login_view_model.dart';
 import '../widgets/auth_method_switch.dart';
@@ -38,6 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _server.text = ref.read(loginViewModelProvider).serverUrl;
     // Check the server as soon as the user leaves the field.
     _serverFocus.addListener(() {
       if (!_serverFocus.hasFocus && _server.text.trim().isNotEmpty) {
@@ -128,7 +131,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         loading: state.submitting,
                         onPressed: state.canSubmit ? _submit : null,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 8),
+                      _SignUpLink(serverUrl: state.serverUrl),
+                      const SizedBox(height: 12),
                       const Text(
                         'Your credentials are exchanged for an API key that '
                         'stays in this device’s secure storage.',
@@ -159,7 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           label: 'Address',
           controller: _server,
           focusNode: _serverFocus,
-          hint: 'keep.example.com',
+          hint: AppConfig.defaultServerUrl,
           keyboardType: TextInputType.url,
           textInputAction: TextInputAction.next,
           autofillHints: const [AutofillHints.url],
@@ -310,6 +315,50 @@ class _Brand extends StatelessWidget {
         const Text(
           'Sign in to your Karakeep server',
           style: TextStyle(fontSize: 15, color: AppColors.mutedForeground),
+        ),
+      ],
+    );
+  }
+}
+
+/// "No account? Sign up" — opens the server's sign-up page in the browser
+/// (Karakeep Cloud's unless another address was typed).
+class _SignUpLink extends StatelessWidget {
+  const _SignUpLink({required this.serverUrl});
+
+  final String serverUrl;
+
+  Future<void> _open(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final base = switch (normalizeServerUrl(serverUrl)) {
+      ValidServerUrl(:final url) => url,
+      InvalidServerUrl() => AppConfig.defaultServerUrl,
+    };
+    final opened = await launchUrl(
+      Uri.parse('$base/signup'),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Couldn’t open the sign-up page.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Wraps rather than overflowing when the phone uses large text.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Text(
+          'No account yet?',
+          style: TextStyle(fontSize: 14, color: AppColors.mutedForeground),
+        ),
+        TextButton(
+          onPressed: () => _open(context),
+          child: const Text('Sign up'),
         ),
       ],
     );

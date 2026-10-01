@@ -32,7 +32,7 @@ class HomeFeedViewModel extends Notifier<HomeFeedState>
     return HomeFeedState(
       scope: prefs.lastScope(account) ?? const AllScope(),
       showArchived: prefs.showArchived,
-      sortOrder: prefs.sortOrder,
+      sort: prefs.sort,
     );
   }
 
@@ -78,10 +78,10 @@ class HomeFeedViewModel extends Notifier<HomeFeedState>
     await Future.wait([_prefs.setShowArchived(value), _loadFirstPage()]);
   }
 
-  Future<void> setSortOrder(SortOrder value) async {
-    if (value == state.sortOrder) return;
-    state = _fresh(sortOrder: value);
-    await Future.wait([_prefs.setSortOrder(value), _loadFirstPage()]);
+  Future<void> setSort(FeedSort value) async {
+    if (value == state.sort) return;
+    state = _fresh(sort: value);
+    await Future.wait([_prefs.setSort(value), _loadFirstPage()]);
   }
 
   /// A tag was deleted: take it off the cards already on screen.
@@ -99,12 +99,12 @@ class HomeFeedViewModel extends Notifier<HomeFeedState>
   HomeFeedState _fresh({
     BookmarkScope? scope,
     bool? showArchived,
-    SortOrder? sortOrder,
+    FeedSort? sort,
   }) =>
       HomeFeedState(
         scope: scope ?? state.scope,
         showArchived: showArchived ?? state.showArchived,
-        sortOrder: sortOrder ?? state.sortOrder,
+        sort: sort ?? state.sort,
       );
 
   /// Pull-to-refresh: keeps current items on screen until the new page lands.
@@ -138,11 +138,23 @@ class HomeFeedViewModel extends Notifier<HomeFeedState>
       );
     }
     try {
-      final page = await _repo.getBookmarks(
-        scope,
-        includeArchived: state.showArchived,
-        order: state.sortOrder,
-      );
+      final sort = state.sort;
+      // Title and website: the server can't sort by them, so get it all.
+      final page = sort.byServer
+          ? await _repo.getBookmarks(
+              scope,
+              includeArchived: state.showArchived,
+              order: sort.serverOrder,
+            )
+          : BookmarkPage(
+              bookmarks: sortLocally(
+                await _repo.getAllBookmarks(
+                  scope,
+                  includeArchived: state.showArchived,
+                ),
+                sort,
+              ),
+            );
       if (!ref.mounted || generation != _generation) return;
       state = state.copyWith(
         status: FeedStatus.ready,
@@ -180,7 +192,7 @@ class HomeFeedViewModel extends Notifier<HomeFeedState>
       final page = await _repo.getBookmarks(
         state.scope,
         includeArchived: state.showArchived,
-        order: state.sortOrder,
+        order: state.sort.serverOrder,
         cursor: cursor,
       );
       if (!ref.mounted || generation != _generation) return;

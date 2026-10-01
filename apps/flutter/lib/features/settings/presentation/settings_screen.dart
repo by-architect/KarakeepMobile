@@ -25,8 +25,8 @@ class SettingsScreen extends ConsumerWidget {
     final session = ref.watch(currentSessionProvider);
     final showArchived =
         ref.watch(homeFeedViewModelProvider.select((s) => s.showArchived));
-    final sortOrder =
-        ref.watch(homeFeedViewModelProvider.select((s) => s.sortOrder));
+    final sort = ref.watch(homeFeedViewModelProvider.select((s) => s.sort));
+    final homeFeed = ref.read(homeFeedViewModelProvider.notifier);
     final appVersion = ref.watch(appVersionProvider).value;
 
     return Scaffold(
@@ -72,15 +72,33 @@ class SettingsScreen extends ConsumerWidget {
                     .read(homeFeedViewModelProvider.notifier)
                     .setShowArchived,
               ),
-              _Segmented<SortOrder>(
-                label: 'Order',
-                value: sortOrder,
+              _Segmented<SortField>(
+                label: 'Sort by',
+                value: sort.field,
                 options: const {
-                  SortOrder.newestFirst: 'Newest first',
-                  SortOrder.oldestFirst: 'Oldest first',
+                  SortField.dateAdded: 'Date added',
+                  SortField.title: 'Title',
+                  SortField.website: 'Website',
                 },
-                onChanged:
-                    ref.read(homeFeedViewModelProvider.notifier).setSortOrder,
+                onChanged: (field) =>
+                    homeFeed.setSort(sort.copyWith(field: field)),
+              ),
+              SwitchListTile(
+                title: const Text('Reverse order'),
+                subtitle: Text(
+                  switch ((sort.field, sort.reversed)) {
+                    (SortField.dateAdded, false) => 'Newest first',
+                    (SortField.dateAdded, true) => 'Oldest first',
+                    (_, false) => 'A to Z',
+                    (_, true) => 'Z to A',
+                  },
+                  style: const TextStyle(fontSize: 13, color: AppColors.muted),
+                ),
+                value: sort.reversed,
+                activeThumbColor: AppColors.foreground,
+                activeTrackColor: AppColors.primary,
+                onChanged: (reversed) =>
+                    homeFeed.setSort(sort.copyWith(reversed: reversed)),
               ),
               SwitchListTile(
                 title: const Text('Ask before deleting'),

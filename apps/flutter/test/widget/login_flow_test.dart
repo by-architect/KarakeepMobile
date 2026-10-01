@@ -37,6 +37,9 @@ void main() {
 
   Finder field(String hint) => find.widgetWithText(TextField, hint);
 
+  /// The server address field (it starts out holding the Cloud address).
+  Finder address() => find.byType(TextField).first;
+
   FilledButton signInButton(WidgetTester tester) =>
       tester.widget<FilledButton>(find.byType(FilledButton));
 
@@ -52,7 +55,7 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.enterText(field('keep.example.com'), 'keep.example.com');
+    await tester.enterText(address(), 'keep.example.com');
     await tester.enterText(field('you@example.com'), 'ada@example.com');
     await tester.enterText(field('Required'), 'pw');
     await tester.pump();
@@ -84,7 +87,7 @@ void main() {
 
   testWidgets('Check shows the server version', (tester) async {
     await pumpApp(tester);
-    await tester.enterText(field('keep.example.com'), 'keep.example.com');
+    await tester.enterText(address(), 'keep.example.com');
     await tester.tap(find.text('Check'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Karakeep v0.33.0'), findsOneWidget);
@@ -93,7 +96,7 @@ void main() {
   testWidgets('SSO-only server moves to the API key form', (tester) async {
     repo.serverInfo = const ServerInfo(passwordAuthDisabled: true);
     await pumpApp(tester);
-    await tester.enterText(field('keep.example.com'), 'keep.example.com');
+    await tester.enterText(address(), 'keep.example.com');
     await tester.tap(find.text('Check'));
     await tester.pumpAndSettle();
 
@@ -112,10 +115,26 @@ void main() {
     expect(tester.getSize(check).height, lessThan(lineHeight * 1.5));
   });
 
-  testWidgets('Karakeep Cloud shortcut fills the address', (tester) async {
+  testWidgets('starts on the Karakeep Cloud address, with a sign-up link',
+      (tester) async {
     await pumpApp(tester);
+    expect(
+      tester.widget<TextField>(address()).controller!.text,
+      'https://cloud.karakeep.app',
+    );
+    expect(find.text('Sign up'), findsOneWidget);
+  });
+
+  testWidgets('Karakeep Cloud shortcut fills the address back in',
+      (tester) async {
+    await pumpApp(tester);
+    await tester.enterText(address(), 'keep.example.com');
+    await tester.pump();
     await tester.tap(find.text('Karakeep Cloud'));
     await tester.pump();
-    expect(find.text('https://cloud.karakeep.app'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(address()).controller!.text,
+      'https://cloud.karakeep.app',
+    );
   });
 }
