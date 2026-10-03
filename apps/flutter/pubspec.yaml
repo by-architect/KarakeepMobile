@@ -1,7 +1,7 @@
 name: linkstow
 description: "Linkstow — an unofficial mobile client for self-hosted Karakeep."
 publish_to: 'none'
-version: 1.3.0+4
+version: 1.3.1+5
 
 environment:
   sdk: ^3.13.0
