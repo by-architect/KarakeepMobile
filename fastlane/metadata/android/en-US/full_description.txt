@@ -14,7 +14,13 @@ Linkstow is an open-source mobile client for Karakeep, the self-hostable "bookma
 <li>All bookmarks, Favorites, Archived, your lists (nested and smart lists) and tags</li>
 <li>An "unarchived / total" count on every list — archived means read in Karakeep</li>
 <li>Search with Karakeep's query language, inside the open list or tag</li>
+<li>Sort by date added, title or website, in either order</li>
 <li>Create lists and tags</li>
+</ul>
+
+<b>Add</b>
+<ul>
+<li>Save links, notes and pictures from your gallery with the + button, straight into the open list, tag or Favorites</li>
 </ul>
 
 <b>Read and act</b>
@@ -24,6 +30,8 @@ Linkstow is an open-source mobile client for Karakeep, the self-hostable "bookma
 <li>Configurable swipe actions on cards, with Undo for everything</li>
 </ul>
 
-Linkstow needs a Karakeep server (0.33 or newer). It collects no data: it only talks to the server you sign in to.
+Linkstow needs a Karakeep server (0.33 or newer). It collects no data and contains no trackers. Your login, API key and custom headers are only ever sent to the server you sign in to.
+
+To draw the bookmark cards, Linkstow loads each site's icon straight from the bookmarked website, and its preview image too when Karakeep has not stored one. Scrolling the list therefore makes requests to those websites, which can see your IP address. No headers or credentials are sent with them. The live-page viewer also opens the bookmarked page itself.
 
 Linkstow is an independent community project, not affiliated with or endorsed by Karakeep or Localhost Labs Ltd.
