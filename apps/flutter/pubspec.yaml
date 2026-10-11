@@ -33,6 +33,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/app_icon.png
+    - assets/images/author_avatar.jpg
 
 # Launcher icons: `python3 tool/generate_app_icon.py`, then
 # `dart run flutter_launcher_icons`.
