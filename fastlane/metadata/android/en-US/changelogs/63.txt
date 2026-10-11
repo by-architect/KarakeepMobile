@@ -1,0 +1,1 @@
+- Settings now shows who made the app, with a link to its source code

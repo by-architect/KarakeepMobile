@@ -8,6 +8,9 @@ abstract final class AppConfig {
   static const sourceCodeUrl = 'https://github.com/by-architect/KarakeepMobile';
   static const license = 'GPL-3.0';
 
+  static const authorName = 'The Architect';
+  static const authorAvatarAsset = 'assets/images/author_avatar.jpg';
+
   static const defaultServerUrl = 'https://cloud.karakeep.app';
 
   /// Prefix of the API key name created on the server by a password sign-in,

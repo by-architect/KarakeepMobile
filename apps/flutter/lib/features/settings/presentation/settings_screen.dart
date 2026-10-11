@@ -15,16 +15,18 @@ import 'settings_view_model.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static final _karakeepRepo =
-      Uri.parse('https://github.com/karakeep-app/karakeep');
+  static final _karakeepRepo = Uri.parse(
+    'https://github.com/karakeep-app/karakeep',
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(settingsViewModelProvider);
     final vm = ref.read(settingsViewModelProvider.notifier);
     final session = ref.watch(currentSessionProvider);
-    final showArchived =
-        ref.watch(homeFeedViewModelProvider.select((s) => s.showArchived));
+    final showArchived = ref.watch(
+      homeFeedViewModelProvider.select((s) => s.showArchived),
+    );
     final sort = ref.watch(homeFeedViewModelProvider.select((s) => s.sort));
     final homeFeed = ref.read(homeFeedViewModelProvider.notifier);
     final appVersion = ref.watch(appVersionProvider).value;
@@ -49,10 +51,7 @@ class SettingsScreen extends ConsumerWidget {
               if (session.serverVersion != null)
                 _ValueRow('Server version', session.serverVersion!),
               if (session.server.headers.isNotEmpty)
-                _ValueRow(
-                  'Custom headers',
-                  '${session.server.headers.length}',
-                ),
+                _ValueRow('Custom headers', '${session.server.headers.length}'),
             ],
           ),
           const SizedBox(height: 24),
@@ -202,21 +201,16 @@ class SettingsScreen extends ConsumerWidget {
           GroupedSection(
             label: 'About',
             children: [
+              const _AuthorRow(),
               _ValueRow('${AppConfig.appName} version', appVersion ?? '…'),
               _ValueRow('License', AppConfig.license),
               ListTile(
-                title: const Text('Source code'),
-                trailing: const Icon(Icons.open_in_new_rounded,
-                    size: 18, color: AppColors.muted),
-                onTap: () => launchUrl(
-                  Uri.parse(AppConfig.sourceCodeUrl),
-                  mode: LaunchMode.externalApplication,
-                ),
-              ),
-              ListTile(
                 title: const Text('Karakeep project'),
-                trailing: const Icon(Icons.open_in_new_rounded,
-                    size: 18, color: AppColors.muted),
+                trailing: const Icon(
+                  Icons.open_in_new_rounded,
+                  size: 18,
+                  color: AppColors.muted,
+                ),
                 onTap: () => launchUrl(
                   _karakeepRepo,
                   mode: LaunchMode.externalApplication,
@@ -224,8 +218,10 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 title: const Text('Open-source licenses'),
-                trailing: const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.muted),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.muted,
+                ),
                 onTap: () => showLicensePage(
                   context: context,
                   applicationName: AppConfig.appName,
@@ -333,6 +329,56 @@ class _AccountRow extends StatelessWidget {
   }
 }
 
+class _AuthorRow extends StatelessWidget {
+  const _AuthorRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => launchUrl(
+        Uri.parse(AppConfig.sourceCodeUrl),
+        mode: LaunchMode.externalApplication,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.popover,
+              backgroundImage: AssetImage(AppConfig.authorAvatarAsset),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Created by ${AppConfig.authorName}',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  Text(
+                    'Source code',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.open_in_new_rounded,
+              size: 18,
+              color: AppColors.muted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ValueRow extends StatelessWidget {
   const _ValueRow(this.label, this.value);
 
@@ -403,13 +449,13 @@ class _Segmented<T> extends StatelessWidget {
 }
 
 String swipeActionLabel(SwipeAction action) => switch (action) {
-      SwipeAction.none => 'Nothing',
-      SwipeAction.favourite => 'Favorite',
-      SwipeAction.archive => 'Archive',
-      SwipeAction.addToList => 'Add to list',
-      SwipeAction.addTag => 'Add tag',
-      SwipeAction.delete => 'Delete',
-    };
+  SwipeAction.none => 'Nothing',
+  SwipeAction.favourite => 'Favorite',
+  SwipeAction.archive => 'Archive',
+  SwipeAction.addToList => 'Add to list',
+  SwipeAction.addTag => 'Add tag',
+  SwipeAction.delete => 'Delete',
+};
 
 class _SwipeRow extends StatelessWidget {
   const _SwipeRow({
