@@ -56,6 +56,30 @@ Karakeep Cloud) and read, sort and clean up your bookmarks from your phone.
 - Android. iOS builds from the same code but hasn't been tested on a device
   yet.
 
+## Download
+
+<p>
+  <a href="https://play.google.com/store/apps/details?id=com.byarchitect.linkstow"><img alt="Get it on Google Play" src="https://img.shields.io/badge/Google%20Play-Linkstow-414141?logo=googleplay&logoColor=white"></a>
+  <a href="https://f-droid.org/packages/com.byarchitect.linkstow/"><img alt="Get it on F-Droid" src="https://img.shields.io/badge/F--Droid-Linkstow-1976D2?logo=fdroid&logoColor=white"></a>
+  <a href="https://fdroid.byarchitect.org/fdroid/repo?fingerprint=50941BDAC56B056A520ABFA3FC7DAAB789DEE5B83B295DA54A1961C7BC8A91C9"><img alt="F-Droid: ByArchitect repository" src="https://img.shields.io/badge/F--Droid-ByArchitect%20repository-556B4F?logo=fdroid&logoColor=white"></a>
+  <a href="https://github.com/by-architect/KarakeepMobile/releases/latest"><img alt="Download the APK from GitHub" src="https://img.shields.io/badge/GitHub-APK-181717?logo=github&logoColor=white"></a>
+</p>
+
+- **[Google Play](https://play.google.com/store/apps/details?id=com.byarchitect.linkstow)**
+- **[F-Droid](https://f-droid.org/packages/com.byarchitect.linkstow/)** — just
+  accepted; the page goes live once F-Droid has built the app.
+- **[ByArchitect F-Droid repository](https://fdroid.byarchitect.org/fdroid/repo?fingerprint=50941BDAC56B056A520ABFA3FC7DAAB789DEE5B83B295DA54A1961C7BC8A91C9)**
+  — new versions arrive here first. Open the link on your phone, or in
+  F-Droid go to **Repositories**, tap **+** and paste it, then search for
+  Linkstow.
+- **APK:** download `linkstow-<version>-arm64-v8a.apk` from the
+  [latest release](https://github.com/by-architect/KarakeepMobile/releases/latest)
+  (`armeabi-v7a` for older 32-bit phones). It doesn't update itself.
+
+F-Droid, the ByArchitect repository and the GitHub APKs are signed with the
+same key, so they update each other. Google signs the Play version with its
+own key, so switching between Play and the others means uninstalling first.
+
 ## Getting started
 
 1. Enter your server address — `keep.example.com`, `http://192.168.1.20:3000`,
