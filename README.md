@@ -58,11 +58,14 @@ Karakeep Cloud) and read, sort and clean up your bookmarks from your phone.
 
 ## Download
 
+<a href="https://fdroid.byarchitect.org/fdroid/repo?fingerprint=50941BDAC56B056A520ABFA3FC7DAAB789DEE5B83B295DA54A1961C7BC8A91C9"><img src="docs/readme/fdroid-byarchitect-qr.svg" alt="QR code that adds the ByArchitect repository to F-Droid" width="170" align="right"></a>
+
 <p>
-  <a href="https://play.google.com/store/apps/details?id=com.byarchitect.linkstow"><img alt="Get it on Google Play" src="https://img.shields.io/badge/Google%20Play-Linkstow-414141?logo=googleplay&logoColor=white"></a>
-  <a href="https://f-droid.org/packages/com.byarchitect.linkstow/"><img alt="Get it on F-Droid" src="https://img.shields.io/badge/F--Droid-Linkstow-1976D2?logo=fdroid&logoColor=white"></a>
-  <a href="https://fdroid.byarchitect.org/fdroid/repo?fingerprint=50941BDAC56B056A520ABFA3FC7DAAB789DEE5B83B295DA54A1961C7BC8A91C9"><img alt="F-Droid: ByArchitect repository" src="https://img.shields.io/badge/F--Droid-ByArchitect%20repository-556B4F?logo=fdroid&logoColor=white"></a>
-  <a href="https://github.com/by-architect/KarakeepMobile/releases/latest"><img alt="Download the APK from GitHub" src="https://img.shields.io/badge/GitHub-APK-181717?logo=github&logoColor=white"></a>
+  <a href="https://play.google.com/store/apps/details?id=com.byarchitect.linkstow"><img alt="Get it on Google Play" src="docs/readme/badge-google-play.png" height="80"></a>
+  <a href="https://f-droid.org/packages/com.byarchitect.linkstow/"><img alt="Get it on F-Droid" src="docs/readme/badge-fdroid.png" height="80"></a>
+  <br>
+  <a href="https://fdroid.byarchitect.org/fdroid/repo?fingerprint=50941BDAC56B056A520ABFA3FC7DAAB789DEE5B83B295DA54A1961C7BC8A91C9"><img alt="Get it from the ByArchitect F-Droid repository" src="docs/readme/badge-fdroid-byarchitect.png" height="80"></a>
+  <a href="https://github.com/by-architect/KarakeepMobile/releases/latest"><img alt="Get it on GitHub" src="docs/readme/badge-github.png" height="80"></a>
 </p>
 
 - **[Google Play](https://play.google.com/store/apps/details?id=com.byarchitect.linkstow)**
@@ -70,7 +73,7 @@ Karakeep Cloud) and read, sort and clean up your bookmarks from your phone.
   accepted; the page goes live once F-Droid has built the app.
 - **[ByArchitect F-Droid repository](https://fdroid.byarchitect.org/fdroid/repo?fingerprint=50941BDAC56B056A520ABFA3FC7DAAB789DEE5B83B295DA54A1961C7BC8A91C9)**
   — new versions arrive here first. Open the link on your phone, or in
-  F-Droid go to **Repositories**, tap **+** and paste it, then search for
+  F-Droid go to **Repositories**, tap **+** and scan the QR code, then search for
   Linkstow.
 - **APK:** download `linkstow-<version>-arm64-v8a.apk` from the
   [latest release](https://github.com/by-architect/KarakeepMobile/releases/latest)
